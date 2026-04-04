@@ -44,6 +44,11 @@ CREATE TABLE IF NOT EXISTS memory (
   set_by TEXT NOT NULL,
   updated_at TEXT NOT NULL DEFAULT (datetime('now'))
 );
+
+CREATE TABLE IF NOT EXISTS read_cursors (
+  participant_id TEXT PRIMARY KEY,
+  last_read_rowid INTEGER NOT NULL DEFAULT 0
+);
 `;
 
 export interface ChannelStoreEvents {

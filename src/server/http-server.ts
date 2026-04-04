@@ -40,6 +40,11 @@ export function createApp(channelManager: ChannelManager) {
             res.status(404).json({ error: 'Session not found' });
             return;
           }
+          // Bind session to originating token — prevent session hijacking
+          if (session.participant.id !== participant.id) {
+            res.status(403).json({ error: 'Session does not belong to this token' });
+            return;
+          }
           await session.transport.handleRequest(req, res, req.body);
           return;
         }
@@ -79,6 +84,10 @@ export function createApp(channelManager: ChannelManager) {
           res.status(404).json({ error: 'Session not found' });
           return;
         }
+        if (session.participant.id !== participant.id) {
+          res.status(403).json({ error: 'Session does not belong to this token' });
+          return;
+        }
         await session.transport.handleRequest(req, res);
         return;
       }
@@ -92,6 +101,10 @@ export function createApp(channelManager: ChannelManager) {
         const session = sessionManager.get(sessionId);
         if (!session) {
           res.status(404).json({ error: 'Session not found' });
+          return;
+        }
+        if (session.participant.id !== participant.id) {
+          res.status(403).json({ error: 'Session does not belong to this token' });
           return;
         }
         await session.transport.handleRequest(req, res);
