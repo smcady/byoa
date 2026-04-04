@@ -16,6 +16,18 @@ export function createApp(channelManager: ChannelManager) {
 
   app.use(express.json());
 
+  // Track which channels have message broadcast wired up
+  const wiredChannels = new Set<string>();
+
+  function ensureBroadcastWired(channelId: string): void {
+    if (wiredChannels.has(channelId)) return;
+    const store = channelManager.getOrLoad(channelId);
+    store.on('message:new', (message) => {
+      sessionManager.broadcastMessage(channelId, message, message.participantId);
+    });
+    wiredChannels.add(channelId);
+  }
+
   // ─── MCP endpoint ──────────────────────────────────────────────
   // Handles POST (messages), GET (SSE stream), and DELETE (session close)
 
@@ -70,6 +82,7 @@ export function createApp(channelManager: ChannelManager) {
 
         const mcpServer = createChannelMcpServer(store, participant);
         await mcpServer.connect(transport);
+        ensureBroadcastWired(channelId);
         await transport.handleRequest(req, res, req.body);
         return;
       }

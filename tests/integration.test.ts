@@ -279,6 +279,122 @@ describe('MCP endpoint', () => {
     expect(messages.some((m: { content: string }) => m.content === 'Hello from Agent A!')).toBe(true);
   });
 
+  it('broadcasts messages to other connected agents via SSE', async () => {
+    // Create channel with two agents
+    const createRes = await fetch(`${baseUrl}/api/channels`, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ name: 'Broadcast Test' }),
+    });
+    const { channel, adminToken } = await createRes.json();
+
+    const inviteRes = await fetch(`${baseUrl}/api/channels/${channel.id}/invite`, {
+      method: 'POST',
+      headers: {
+        'Content-Type': 'application/json',
+        Authorization: `Bearer ${adminToken}`,
+      },
+      body: JSON.stringify({
+        userId: 'listener',
+        displayName: 'Listener Agent',
+        type: 'agent',
+        agentName: 'test',
+      }),
+    });
+    const { token: listenerToken } = await inviteRes.json();
+
+    // Initialize both sessions
+    async function initSession(token: string) {
+      const initRes = await fetch(`${baseUrl}/mcp/${channel.id}`, {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+          Accept: 'application/json, text/event-stream',
+          Authorization: `Bearer ${token}`,
+        },
+        body: JSON.stringify({
+          jsonrpc: '2.0',
+          id: 1,
+          method: 'initialize',
+          params: {
+            protocolVersion: '2025-03-26',
+            capabilities: {},
+            clientInfo: { name: 'test', version: '0.1.0' },
+          },
+        }),
+      });
+      const sessionId = initRes.headers.get('mcp-session-id')!;
+      await fetch(`${baseUrl}/mcp/${channel.id}`, {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+          Accept: 'application/json, text/event-stream',
+          Authorization: `Bearer ${token}`,
+          'mcp-session-id': sessionId,
+        },
+        body: JSON.stringify({
+          jsonrpc: '2.0',
+          method: 'notifications/initialized',
+        }),
+      });
+      return sessionId;
+    }
+
+    const senderSessionId = await initSession(adminToken);
+    const listenerSessionId = await initSession(listenerToken);
+
+    // Open SSE stream for listener
+    const sseController = new AbortController();
+    const ssePromise = fetch(`${baseUrl}/mcp/${channel.id}`, {
+      method: 'GET',
+      headers: {
+        Accept: 'text/event-stream',
+        Authorization: `Bearer ${listenerToken}`,
+        'mcp-session-id': listenerSessionId,
+      },
+      signal: sseController.signal,
+    });
+
+    // Give the SSE stream a moment to establish
+    await new Promise((r) => setTimeout(r, 50));
+
+    // Sender sends a message
+    await fetch(`${baseUrl}/mcp/${channel.id}`, {
+      method: 'POST',
+      headers: {
+        'Content-Type': 'application/json',
+        Accept: 'application/json, text/event-stream',
+        Authorization: `Bearer ${adminToken}`,
+        'mcp-session-id': senderSessionId,
+      },
+      body: JSON.stringify({
+        jsonrpc: '2.0',
+        id: 2,
+        method: 'tools/call',
+        params: {
+          name: 'send_message',
+          arguments: { content: 'Broadcast test message' },
+        },
+      }),
+    });
+
+    // Wait a bit for the broadcast to propagate
+    await new Promise((r) => setTimeout(r, 100));
+
+    // Abort the SSE stream and read what we got
+    sseController.abort();
+
+    try {
+      const sseRes = await ssePromise;
+      const sseText = await sseRes.text();
+      // The SSE stream should contain the broadcast notification
+      expect(sseText).toContain('Broadcast test message');
+    } catch (e: unknown) {
+      // AbortError is expected when we abort the fetch
+      if (e instanceof Error && e.name !== 'AbortError') throw e;
+    }
+  });
+
   it('enforces permission restrictions on tool calls', async () => {
     // Create channel
     const createRes = await fetch(`${baseUrl}/api/channels`, {

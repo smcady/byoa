@@ -96,6 +96,13 @@ export class ChannelStore extends EventEmitter {
     metadata?: Record<string, string>
   ): Message {
     const msg = this.messages.add(participantId, content, type, metadata);
+    // Enrich with participant identity for broadcast
+    const participant = this.participants.getById(participantId);
+    if (participant) {
+      msg.displayName = participant.displayName;
+      msg.participantType = participant.type;
+      msg.agentName = participant.agentName;
+    }
     this.emit('message:new', msg);
     return msg;
   }
