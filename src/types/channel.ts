@@ -21,6 +21,9 @@ export interface Message {
   id: string;
   channelId: string;
   participantId: string;
+  displayName?: string;
+  participantType?: 'human' | 'agent';
+  agentName?: string;
   type: 'text' | 'tool_result' | 'file_share' | 'system';
   content: string;
   metadata?: Record<string, string>;

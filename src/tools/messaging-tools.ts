@@ -41,17 +41,36 @@ export function registerMessagingTools(
   server.registerTool(
     'read_history',
     {
-      description: 'Read message history from the channel',
+      description: 'Read message history from the channel as JSON. Each message includes displayName and participantType.',
       inputSchema: {
         limit: z.number().optional().default(50).describe('Max messages to return (max 200)'),
-        before: z.string().optional().describe('ISO timestamp cursor — get messages before this time'),
-        after: z.string().optional().describe('ISO timestamp cursor — get messages after this time'),
+        before: z.string().optional().describe('Message ID cursor — get messages before this one'),
+        after: z.string().optional().describe('Message ID cursor — get messages after this one'),
       },
     },
     async ({ limit, before, after }) => {
       const messages = store.messages.list({ limit, before, after });
       return {
         content: [{ type: 'text' as const, text: JSON.stringify(messages) }],
+      };
+    }
+  );
+
+  server.registerTool(
+    'read_conversation',
+    {
+      description: 'Read the full conversation history formatted for context. Returns a readable text transcript with participant names and roles inline. Use this to load the conversation into your context.',
+      inputSchema: {
+        limit: z.number().optional().default(100).describe('Max messages to return (max 500)'),
+        before: z.string().optional().describe('Message ID cursor — get messages before this one'),
+        after: z.string().optional().describe('Message ID cursor — get messages after this one'),
+      },
+    },
+    async ({ limit, before, after }) => {
+      const clamped = Math.min(limit, 500);
+      const text = store.messages.listFormatted({ limit: clamped, before, after });
+      return {
+        content: [{ type: 'text' as const, text }],
       };
     }
   );
