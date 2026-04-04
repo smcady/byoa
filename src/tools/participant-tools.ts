@@ -45,6 +45,7 @@ export function registerParticipantTools(
               type: participant.type,
               agentName: participant.agentName,
               channelId: participant.channelId,
+              permissions: participant.permissions,
             }),
           },
         ],

@@ -23,6 +23,7 @@ CREATE TABLE IF NOT EXISTS participants (
   display_name TEXT NOT NULL,
   type TEXT NOT NULL CHECK(type IN ('human', 'agent')),
   agent_name TEXT,
+  permissions TEXT NOT NULL DEFAULT '["messaging","files_read","files_write","memory_read","memory_write","participants"]',
   token_hash TEXT NOT NULL UNIQUE,
   joined_at TEXT NOT NULL DEFAULT (datetime('now')),
   last_seen_at TEXT NOT NULL DEFAULT (datetime('now'))
@@ -51,6 +52,11 @@ CREATE TABLE IF NOT EXISTS read_cursors (
 );
 `;
 
+const MIGRATIONS = [
+  // Add permissions column if it doesn't exist (v0.2.0)
+  `ALTER TABLE participants ADD COLUMN permissions TEXT NOT NULL DEFAULT '["messaging","files_read","files_write","memory_read","memory_write","participants"]'`,
+];
+
 export interface ChannelStoreEvents {
   'message:new': (message: Message) => void;
 }
@@ -72,6 +78,7 @@ export class ChannelStore extends EventEmitter {
     this.db = new BetterSqlite3(path.join(channelDir, 'channel.db'));
     this.db.pragma('journal_mode = WAL');
     this.db.exec(SCHEMA);
+    this.applyMigrations();
 
     this.messages = new MessageStore(this.db, channelId);
     this.memory = new MemoryStore(this.db, channelId);
@@ -88,6 +95,16 @@ export class ChannelStore extends EventEmitter {
     const msg = this.messages.add(participantId, content, type, metadata);
     this.emit('message:new', msg);
     return msg;
+  }
+
+  private applyMigrations(): void {
+    for (const migration of MIGRATIONS) {
+      try {
+        this.db.exec(migration);
+      } catch {
+        // Column/table already exists — skip
+      }
+    }
   }
 
   close(): void {

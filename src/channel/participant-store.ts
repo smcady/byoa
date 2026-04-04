@@ -1,6 +1,7 @@
 import type Database from 'better-sqlite3';
 import { nanoid } from 'nanoid';
-import type { Participant } from '../types/channel.js';
+import type { Participant, Permission } from '../types/channel.js';
+import { ALL_PERMISSIONS } from '../types/channel.js';
 
 export class ParticipantStore {
   constructor(
@@ -13,9 +14,11 @@ export class ParticipantStore {
     displayName: string;
     type: 'human' | 'agent';
     agentName?: string;
+    permissions?: Permission[];
     tokenHash: string;
   }): Participant {
     const now = new Date().toISOString();
+    const permissions = opts.permissions ?? ALL_PERMISSIONS;
     const participant: Participant = {
       id: nanoid(),
       channelId: this.channelId,
@@ -23,14 +26,15 @@ export class ParticipantStore {
       displayName: opts.displayName,
       type: opts.type,
       agentName: opts.agentName,
+      permissions,
       tokenHash: opts.tokenHash,
       joinedAt: now,
       lastSeenAt: now,
     };
     this.db
       .prepare(
-        `INSERT INTO participants (id, user_id, display_name, type, agent_name, token_hash, joined_at, last_seen_at)
-         VALUES (?, ?, ?, ?, ?, ?, ?, ?)`
+        `INSERT INTO participants (id, user_id, display_name, type, agent_name, permissions, token_hash, joined_at, last_seen_at)
+         VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)`
       )
       .run(
         participant.id,
@@ -38,6 +42,7 @@ export class ParticipantStore {
         participant.displayName,
         participant.type,
         participant.agentName ?? null,
+        JSON.stringify(permissions),
         participant.tokenHash,
         participant.joinedAt,
         participant.lastSeenAt
@@ -70,6 +75,20 @@ export class ParticipantStore {
       .run(new Date().toISOString(), id);
   }
 
+  updatePermissions(id: string, permissions: Permission[]): boolean {
+    const result = this.db
+      .prepare(`UPDATE participants SET permissions = ? WHERE id = ?`)
+      .run(JSON.stringify(permissions), id);
+    return result.changes > 0;
+  }
+
+  getById(id: string): Participant | undefined {
+    const row = this.db
+      .prepare(`SELECT * FROM participants WHERE id = ?`)
+      .get(id) as RawRow | undefined;
+    return row ? this.rowToParticipant(row) : undefined;
+  }
+
   private rowToParticipant(r: RawRow): Participant {
     return {
       id: r.id,
@@ -78,6 +97,7 @@ export class ParticipantStore {
       displayName: r.display_name,
       type: r.type as 'human' | 'agent',
       agentName: r.agent_name ?? undefined,
+      permissions: r.permissions ? JSON.parse(r.permissions) : ALL_PERMISSIONS,
       tokenHash: r.token_hash,
       joinedAt: r.joined_at,
       lastSeenAt: r.last_seen_at,
@@ -91,6 +111,7 @@ type RawRow = {
   display_name: string;
   type: string;
   agent_name: string | null;
+  permissions: string | null;
   token_hash: string;
   joined_at: string;
   last_seen_at: string;

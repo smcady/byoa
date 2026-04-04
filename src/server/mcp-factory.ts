@@ -1,6 +1,7 @@
 import { McpServer } from '@modelcontextprotocol/sdk/server/mcp.js';
 import type { ChannelStore } from '../channel/channel-store.js';
-import type { Participant } from '../types/channel.js';
+import type { Participant, Permission } from '../types/channel.js';
+import { ALL_PERMISSIONS, TOOL_PERMISSION_MAP } from '../types/channel.js';
 import { registerMessagingTools } from '../tools/messaging-tools.js';
 import { registerFileTools } from '../tools/file-tools.js';
 import { registerMemoryTools } from '../tools/memory-tools.js';
@@ -18,7 +19,13 @@ function buildInstructions(store: ChannelStore, participant: Participant): strin
     })
     .join('\n');
 
+  const permissionNote =
+    participant.permissions.length === ALL_PERMISSIONS.length
+      ? 'You have full permissions in this channel.'
+      : `Your permissions: ${participant.permissions.join(', ')}. Tools outside these categories will be denied.`;
+
   return `You are ${participant.displayName} (${participant.type}), connected to Agora channel "${store.channelId}".
+${permissionNote}
 
 ## Participants in this channel
 ${roster}
@@ -57,6 +64,41 @@ You are one participant among many in a shared workspace. This is a group conver
 - Do not share information about your user's other projects, schedule, or private context unless they have explicitly made it available in this channel.`;
 }
 
+function wrapWithPermissionGuard(server: McpServer, participant: Participant): McpServer {
+  const originalRegisterTool = server.registerTool.bind(server);
+
+  server.registerTool = function (name: string, ...args: unknown[]) {
+    const requiredPermission = TOOL_PERMISSION_MAP[name];
+
+    if (!requiredPermission) {
+      // No permission mapping — register without guard
+      return (originalRegisterTool as Function)(name, ...args);
+    }
+
+    // The last argument is always the handler callback
+    const handler = args[args.length - 1] as Function;
+    const guardedHandler = async (...handlerArgs: unknown[]) => {
+      if (!participant.permissions.includes(requiredPermission)) {
+        return {
+          isError: true,
+          content: [
+            {
+              type: 'text' as const,
+              text: `Permission denied: you do not have the '${requiredPermission}' permission required to use '${name}'. Your current permissions: ${JSON.stringify(participant.permissions)}`,
+            },
+          ],
+        };
+      }
+      return handler(...handlerArgs);
+    };
+
+    const guardedArgs = [...args.slice(0, -1), guardedHandler];
+    return (originalRegisterTool as Function)(name, ...guardedArgs);
+  } as typeof server.registerTool;
+
+  return server;
+}
+
 export function createChannelMcpServer(
   store: ChannelStore,
   participant: Participant
@@ -71,6 +113,8 @@ export function createChannelMcpServer(
       instructions: buildInstructions(store, participant),
     }
   );
+
+  wrapWithPermissionGuard(server, participant);
 
   registerMessagingTools(server, store, participant);
   registerFileTools(server, store);

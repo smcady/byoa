@@ -7,6 +7,8 @@ import { createChannelMcpServer } from './mcp-factory.js';
 import { authenticateRequest } from '../auth/token-auth.js';
 import { generateToken, hashToken } from '../auth/tokens.js';
 import { AgoraError, AuthError, NotFoundError, ValidationError } from '../types/errors.js';
+import { ALL_PERMISSIONS } from '../types/channel.js';
+import type { Permission } from '../types/channel.js';
 
 export function createApp(channelManager: ChannelManager) {
   const app = express();
@@ -162,10 +164,24 @@ export function createApp(channelManager: ChannelManager) {
   app.post('/api/channels/:channelId/invite', (req, res) => {
     try {
       const { channelId } = req.params;
-      const { userId, displayName, type, agentName } = req.body;
+      const { userId, displayName, type, agentName, permissions } = req.body;
 
       if (!userId || !displayName) {
         throw new ValidationError('userId and displayName are required');
+      }
+
+      // Validate permissions if provided
+      let validatedPermissions: Permission[] | undefined;
+      if (permissions) {
+        if (!Array.isArray(permissions)) {
+          throw new ValidationError('permissions must be an array');
+        }
+        for (const p of permissions) {
+          if (!ALL_PERMISSIONS.includes(p)) {
+            throw new ValidationError(`Invalid permission: ${p}. Valid: ${ALL_PERMISSIONS.join(', ')}`);
+          }
+        }
+        validatedPermissions = permissions;
       }
 
       // Auth: only existing participants can invite
@@ -178,6 +194,7 @@ export function createApp(channelManager: ChannelManager) {
         displayName,
         type: type || 'human',
         agentName,
+        permissions: validatedPermissions,
         tokenHash: hashToken(token),
       });
 
@@ -188,6 +205,7 @@ export function createApp(channelManager: ChannelManager) {
           displayName: participant.displayName,
           type: participant.type,
           agentName: participant.agentName,
+          permissions: participant.permissions,
         },
         token,
         mcpConfig: {
@@ -219,6 +237,37 @@ export function createApp(channelManager: ChannelManager) {
         lastSeenAt: p.lastSeenAt,
       }));
       res.json({ participants });
+    } catch (err) {
+      handleError(res, err);
+    }
+  });
+
+  // Update participant permissions
+  app.patch('/api/channels/:channelId/participants/:participantId/permissions', (req, res) => {
+    try {
+      const { channelId, participantId } = req.params;
+      const { permissions } = req.body;
+
+      if (!Array.isArray(permissions)) {
+        throw new ValidationError('permissions must be an array');
+      }
+      for (const p of permissions) {
+        if (!ALL_PERMISSIONS.includes(p)) {
+          throw new ValidationError(`Invalid permission: ${p}. Valid: ${ALL_PERMISSIONS.join(', ')}`);
+        }
+      }
+
+      authenticateRequest(channelManager, channelId, req.headers.authorization);
+      const store = channelManager.getOrLoad(channelId);
+      const updated = store.participants.updatePermissions(participantId, permissions);
+      if (!updated) throw new NotFoundError(`Participant: ${participantId}`);
+
+      const participant = store.participants.getById(participantId);
+      res.json({
+        id: participant!.id,
+        displayName: participant!.displayName,
+        permissions: participant!.permissions,
+      });
     } catch (err) {
       handleError(res, err);
     }

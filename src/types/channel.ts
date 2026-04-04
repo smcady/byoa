@@ -5,6 +5,38 @@ export interface Channel {
   createdBy: string;
 }
 
+export type Permission =
+  | 'messaging'
+  | 'files_read'
+  | 'files_write'
+  | 'memory_read'
+  | 'memory_write'
+  | 'participants';
+
+export const ALL_PERMISSIONS: Permission[] = [
+  'messaging',
+  'files_read',
+  'files_write',
+  'memory_read',
+  'memory_write',
+  'participants',
+];
+
+export const TOOL_PERMISSION_MAP: Record<string, Permission> = {
+  send_message: 'messaging',
+  read_history: 'messaging',
+  read_conversation: 'messaging',
+  read_file: 'files_read',
+  list_files: 'files_read',
+  write_file: 'files_write',
+  memory_get: 'memory_read',
+  memory_list: 'memory_read',
+  memory_set: 'memory_write',
+  memory_delete: 'memory_write',
+  list_participants: 'participants',
+  whoami: 'participants',
+};
+
 export interface Participant {
   id: string;
   channelId: string;
@@ -12,6 +44,7 @@ export interface Participant {
   displayName: string;
   type: 'human' | 'agent';
   agentName?: string;
+  permissions: Permission[];
   tokenHash: string;
   joinedAt: string;
   lastSeenAt: string;
