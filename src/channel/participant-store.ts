@@ -1,6 +1,6 @@
 import type Database from 'better-sqlite3';
 import { nanoid } from 'nanoid';
-import type { Participant, Permission } from '../types/channel.js';
+import type { Participant, Permission, PrivacyPolicy } from '../types/channel.js';
 import { ALL_PERMISSIONS } from '../types/channel.js';
 
 export class ParticipantStore {
@@ -15,6 +15,7 @@ export class ParticipantStore {
     type: 'human' | 'agent';
     agentName?: string;
     permissions?: Permission[];
+    privacyPolicy?: PrivacyPolicy;
     tokenHash: string;
   }): Participant {
     const now = new Date().toISOString();
@@ -27,14 +28,15 @@ export class ParticipantStore {
       type: opts.type,
       agentName: opts.agentName,
       permissions,
+      privacyPolicy: opts.privacyPolicy,
       tokenHash: opts.tokenHash,
       joinedAt: now,
       lastSeenAt: now,
     };
     this.db
       .prepare(
-        `INSERT INTO participants (id, user_id, display_name, type, agent_name, permissions, token_hash, joined_at, last_seen_at)
-         VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)`
+        `INSERT INTO participants (id, user_id, display_name, type, agent_name, permissions, privacy_policy, token_hash, joined_at, last_seen_at)
+         VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`
       )
       .run(
         participant.id,
@@ -43,6 +45,7 @@ export class ParticipantStore {
         participant.type,
         participant.agentName ?? null,
         JSON.stringify(permissions),
+        opts.privacyPolicy ? JSON.stringify(opts.privacyPolicy) : null,
         participant.tokenHash,
         participant.joinedAt,
         participant.lastSeenAt
@@ -82,6 +85,13 @@ export class ParticipantStore {
     return result.changes > 0;
   }
 
+  updatePrivacyPolicy(id: string, policy: PrivacyPolicy | null): boolean {
+    const result = this.db
+      .prepare(`UPDATE participants SET privacy_policy = ? WHERE id = ?`)
+      .run(policy ? JSON.stringify(policy) : null, id);
+    return result.changes > 0;
+  }
+
   getById(id: string): Participant | undefined {
     const row = this.db
       .prepare(`SELECT * FROM participants WHERE id = ?`)
@@ -98,6 +108,7 @@ export class ParticipantStore {
       type: r.type as 'human' | 'agent',
       agentName: r.agent_name ?? undefined,
       permissions: r.permissions ? JSON.parse(r.permissions) : ALL_PERMISSIONS,
+      privacyPolicy: r.privacy_policy ? JSON.parse(r.privacy_policy) : undefined,
       tokenHash: r.token_hash,
       joinedAt: r.joined_at,
       lastSeenAt: r.last_seen_at,
@@ -112,6 +123,7 @@ type RawRow = {
   type: string;
   agent_name: string | null;
   permissions: string | null;
+  privacy_policy: string | null;
   token_hash: string;
   joined_at: string;
   last_seen_at: string;

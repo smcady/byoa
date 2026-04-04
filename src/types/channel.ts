@@ -35,7 +35,14 @@ export const TOOL_PERMISSION_MAP: Record<string, Permission> = {
   memory_delete: 'memory_write',
   list_participants: 'participants',
   whoami: 'participants',
+  get_privacy_policy: 'participants',
 };
+
+export interface PrivacyPolicy {
+  shareableContext?: string[];
+  restrictedContext?: string[];
+  instructions?: string;
+}
 
 export interface Participant {
   id: string;
@@ -45,6 +52,7 @@ export interface Participant {
   type: 'human' | 'agent';
   agentName?: string;
   permissions: Permission[];
+  privacyPolicy?: PrivacyPolicy;
   tokenHash: string;
   joinedAt: string;
   lastSeenAt: string;

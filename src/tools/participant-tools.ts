@@ -52,4 +52,24 @@ export function registerParticipantTools(
       };
     }
   );
+
+  server.registerTool(
+    'get_privacy_policy',
+    {
+      description:
+        'Get your privacy policy for this channel. Shows what context you may and must not share.',
+    },
+    async () => {
+      return {
+        content: [
+          {
+            type: 'text' as const,
+            text: participant.privacyPolicy
+              ? JSON.stringify(participant.privacyPolicy)
+              : 'No privacy policy set for this channel.',
+          },
+        ],
+      };
+    }
+  );
 }

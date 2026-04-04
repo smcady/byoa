@@ -393,6 +393,98 @@ describe('MCP endpoint', () => {
     expect(identity.permissions).toEqual(['files_read', 'participants']);
   });
 
+  it('supports privacy policy on invite and via PATCH', async () => {
+    // Create channel
+    const createRes = await fetch(`${baseUrl}/api/channels`, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ name: 'Privacy Test' }),
+    });
+    const { channel, adminToken } = await createRes.json();
+
+    // Invite agent with privacy policy
+    const policy = {
+      shareableContext: ['project status', 'availability'],
+      restrictedContext: ['other client projects', 'financials'],
+      instructions: 'Do not share details about other projects.',
+    };
+    const inviteRes = await fetch(`${baseUrl}/api/channels/${channel.id}/invite`, {
+      method: 'POST',
+      headers: {
+        'Content-Type': 'application/json',
+        Authorization: `Bearer ${adminToken}`,
+      },
+      body: JSON.stringify({
+        userId: 'privacy-agent',
+        displayName: 'Private Agent',
+        type: 'agent',
+        privacyPolicy: policy,
+      }),
+    });
+    expect(inviteRes.status).toBe(201);
+    const { participant, token } = await inviteRes.json();
+
+    // Initialize MCP and check instructions include privacy policy
+    const initRes = await fetch(`${baseUrl}/mcp/${channel.id}`, {
+      method: 'POST',
+      headers: {
+        'Content-Type': 'application/json',
+        Accept: 'application/json, text/event-stream',
+        Authorization: `Bearer ${token}`,
+      },
+      body: JSON.stringify({
+        jsonrpc: '2.0',
+        id: 1,
+        method: 'initialize',
+        params: {
+          protocolVersion: '2025-03-26',
+          capabilities: {},
+          clientInfo: { name: 'test', version: '0.1.0' },
+        },
+      }),
+    });
+    const initBody = await initRes.json();
+    expect(initBody.result.instructions).toContain('Privacy boundaries');
+    expect(initBody.result.instructions).toContain('Do not share details about other projects');
+    expect(initBody.result.instructions).toContain('other client projects');
+
+    // Update privacy policy via PATCH
+    const patchRes = await fetch(
+      `${baseUrl}/api/channels/${channel.id}/participants/${participant.id}/privacy`,
+      {
+        method: 'PATCH',
+        headers: {
+          'Content-Type': 'application/json',
+          Authorization: `Bearer ${adminToken}`,
+        },
+        body: JSON.stringify({
+          privacyPolicy: {
+            instructions: 'Share nothing personal.',
+          },
+        }),
+      }
+    );
+    expect(patchRes.status).toBe(200);
+    const patchBody = await patchRes.json();
+    expect(patchBody.privacyPolicy.instructions).toBe('Share nothing personal.');
+
+    // Clear privacy policy
+    const clearRes = await fetch(
+      `${baseUrl}/api/channels/${channel.id}/participants/${participant.id}/privacy`,
+      {
+        method: 'PATCH',
+        headers: {
+          'Content-Type': 'application/json',
+          Authorization: `Bearer ${adminToken}`,
+        },
+        body: JSON.stringify({ privacyPolicy: null }),
+      }
+    );
+    expect(clearRes.status).toBe(200);
+    const clearBody = await clearRes.json();
+    expect(clearBody.privacyPolicy).toBeNull();
+  });
+
   it('allows updating participant permissions via PATCH', async () => {
     // Create channel
     const createRes = await fetch(`${baseUrl}/api/channels`, {

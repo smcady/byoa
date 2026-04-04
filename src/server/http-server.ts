@@ -8,7 +8,7 @@ import { authenticateRequest } from '../auth/token-auth.js';
 import { generateToken, hashToken } from '../auth/tokens.js';
 import { AgoraError, AuthError, NotFoundError, ValidationError } from '../types/errors.js';
 import { ALL_PERMISSIONS } from '../types/channel.js';
-import type { Permission } from '../types/channel.js';
+import type { Permission, PrivacyPolicy } from '../types/channel.js';
 
 export function createApp(channelManager: ChannelManager) {
   const app = express();
@@ -164,7 +164,7 @@ export function createApp(channelManager: ChannelManager) {
   app.post('/api/channels/:channelId/invite', (req, res) => {
     try {
       const { channelId } = req.params;
-      const { userId, displayName, type, agentName, permissions } = req.body;
+      const { userId, displayName, type, agentName, permissions, privacyPolicy } = req.body;
 
       if (!userId || !displayName) {
         throw new ValidationError('userId and displayName are required');
@@ -187,6 +187,11 @@ export function createApp(channelManager: ChannelManager) {
       // Auth: only existing participants can invite
       authenticateRequest(channelManager, channelId, req.headers.authorization);
 
+      // Validate privacy policy if provided
+      if (privacyPolicy && typeof privacyPolicy !== 'object') {
+        throw new ValidationError('privacyPolicy must be an object');
+      }
+
       const store = channelManager.getOrLoad(channelId);
       const token = generateToken();
       const participant = store.participants.add({
@@ -195,6 +200,7 @@ export function createApp(channelManager: ChannelManager) {
         type: type || 'human',
         agentName,
         permissions: validatedPermissions,
+        privacyPolicy: privacyPolicy as PrivacyPolicy | undefined,
         tokenHash: hashToken(token),
       });
 
@@ -267,6 +273,35 @@ export function createApp(channelManager: ChannelManager) {
         id: participant!.id,
         displayName: participant!.displayName,
         permissions: participant!.permissions,
+      });
+    } catch (err) {
+      handleError(res, err);
+    }
+  });
+
+  // Update participant privacy policy
+  app.patch('/api/channels/:channelId/participants/:participantId/privacy', (req, res) => {
+    try {
+      const { channelId, participantId } = req.params;
+      const { privacyPolicy } = req.body;
+
+      if (privacyPolicy !== null && typeof privacyPolicy !== 'object') {
+        throw new ValidationError('privacyPolicy must be an object or null');
+      }
+
+      authenticateRequest(channelManager, channelId, req.headers.authorization);
+      const store = channelManager.getOrLoad(channelId);
+      const updated = store.participants.updatePrivacyPolicy(
+        participantId,
+        privacyPolicy as PrivacyPolicy | null
+      );
+      if (!updated) throw new NotFoundError(`Participant: ${participantId}`);
+
+      const participant = store.participants.getById(participantId);
+      res.json({
+        id: participant!.id,
+        displayName: participant!.displayName,
+        privacyPolicy: participant!.privacyPolicy ?? null,
       });
     } catch (err) {
       handleError(res, err);

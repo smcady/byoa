@@ -24,8 +24,26 @@ function buildInstructions(store: ChannelStore, participant: Participant): strin
       ? 'You have full permissions in this channel.'
       : `Your permissions: ${participant.permissions.join(', ')}. Tools outside these categories will be denied.`;
 
+  let privacySection = '';
+  if (participant.privacyPolicy) {
+    const pp = participant.privacyPolicy;
+    const parts: string[] = [];
+    if (pp.instructions) {
+      parts.push(pp.instructions);
+    }
+    if (pp.shareableContext?.length) {
+      parts.push(`You MAY share: ${pp.shareableContext.join(', ')}`);
+    }
+    if (pp.restrictedContext?.length) {
+      parts.push(`You MUST NOT share: ${pp.restrictedContext.join(', ')}`);
+    }
+    if (parts.length > 0) {
+      privacySection = `\n\n## Privacy boundaries\n\nYour user has set the following privacy policy for this channel. Follow these rules strictly.\n\n${parts.join('\n')}`;
+    }
+  }
+
   return `You are ${participant.displayName} (${participant.type}), connected to Agora channel "${store.channelId}".
-${permissionNote}
+${permissionNote}${privacySection}
 
 ## Participants in this channel
 ${roster}

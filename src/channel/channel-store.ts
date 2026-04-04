@@ -24,6 +24,7 @@ CREATE TABLE IF NOT EXISTS participants (
   type TEXT NOT NULL CHECK(type IN ('human', 'agent')),
   agent_name TEXT,
   permissions TEXT NOT NULL DEFAULT '["messaging","files_read","files_write","memory_read","memory_write","participants"]',
+  privacy_policy TEXT,
   token_hash TEXT NOT NULL UNIQUE,
   joined_at TEXT NOT NULL DEFAULT (datetime('now')),
   last_seen_at TEXT NOT NULL DEFAULT (datetime('now'))
@@ -55,6 +56,8 @@ CREATE TABLE IF NOT EXISTS read_cursors (
 const MIGRATIONS = [
   // Add permissions column if it doesn't exist (v0.2.0)
   `ALTER TABLE participants ADD COLUMN permissions TEXT NOT NULL DEFAULT '["messaging","files_read","files_write","memory_read","memory_write","participants"]'`,
+  // Add privacy_policy column (v0.2.0)
+  `ALTER TABLE participants ADD COLUMN privacy_policy TEXT`,
 ];
 
 export interface ChannelStoreEvents {
