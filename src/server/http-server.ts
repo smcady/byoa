@@ -1,0 +1,243 @@
+import express from 'express';
+import crypto from 'node:crypto';
+import { StreamableHTTPServerTransport } from '@modelcontextprotocol/sdk/server/streamableHttp.js';
+import { ChannelManager } from '../channel/channel-manager.js';
+import { SessionManager } from './session-manager.js';
+import { createChannelMcpServer } from './mcp-factory.js';
+import { authenticateRequest } from '../auth/token-auth.js';
+import { generateToken, hashToken } from '../auth/tokens.js';
+import { AgoraError, AuthError, NotFoundError, ValidationError } from '../types/errors.js';
+
+export function createApp(channelManager: ChannelManager) {
+  const app = express();
+  const sessionManager = new SessionManager();
+
+  app.use(express.json());
+
+  // ─── MCP endpoint ──────────────────────────────────────────────
+  // Handles POST (messages), GET (SSE stream), and DELETE (session close)
+
+  app.all('/mcp/:channelId', async (req, res) => {
+    const { channelId } = req.params;
+
+    try {
+      // Auth: resolve bearer token to participant
+      const participant = authenticateRequest(
+        channelManager,
+        channelId,
+        req.headers.authorization
+      );
+      const store = channelManager.getOrLoad(channelId);
+
+      if (req.method === 'POST') {
+        // Check if this is an existing session
+        const sessionId = req.headers['mcp-session-id'] as string | undefined;
+
+        if (sessionId) {
+          // Existing session — route to its transport
+          const session = sessionManager.get(sessionId);
+          if (!session) {
+            res.status(404).json({ error: 'Session not found' });
+            return;
+          }
+          await session.transport.handleRequest(req, res, req.body);
+          return;
+        }
+
+        // New session — create transport, server, and connect
+        const transport = new StreamableHTTPServerTransport({
+          sessionIdGenerator: () => crypto.randomUUID(),
+          enableJsonResponse: true,
+          onsessioninitialized: (newSessionId: string) => {
+            sessionManager.register(newSessionId, {
+              transport,
+              server: mcpServer,
+              participant,
+              channelId,
+            });
+          },
+          onsessionclosed: (closedSessionId: string) => {
+            sessionManager.remove(closedSessionId);
+          },
+        });
+
+        const mcpServer = createChannelMcpServer(store, participant);
+        await mcpServer.connect(transport);
+        await transport.handleRequest(req, res, req.body);
+        return;
+      }
+
+      if (req.method === 'GET') {
+        // SSE stream for an existing session
+        const sessionId = req.headers['mcp-session-id'] as string | undefined;
+        if (!sessionId) {
+          res.status(400).json({ error: 'Missing mcp-session-id header' });
+          return;
+        }
+        const session = sessionManager.get(sessionId);
+        if (!session) {
+          res.status(404).json({ error: 'Session not found' });
+          return;
+        }
+        await session.transport.handleRequest(req, res);
+        return;
+      }
+
+      if (req.method === 'DELETE') {
+        const sessionId = req.headers['mcp-session-id'] as string | undefined;
+        if (!sessionId) {
+          res.status(400).json({ error: 'Missing mcp-session-id header' });
+          return;
+        }
+        const session = sessionManager.get(sessionId);
+        if (!session) {
+          res.status(404).json({ error: 'Session not found' });
+          return;
+        }
+        await session.transport.handleRequest(req, res);
+        return;
+      }
+
+      res.status(405).json({ error: 'Method not allowed' });
+    } catch (err) {
+      handleError(res, err);
+    }
+  });
+
+  // ─── Admin API ─────────────────────────────────────────────────
+
+  // Create channel
+  app.post('/api/channels', (req, res) => {
+    try {
+      const { name } = req.body;
+      if (!name || typeof name !== 'string') {
+        throw new ValidationError('Channel name is required');
+      }
+
+      const adminToken = generateToken();
+      const { channel, store } = channelManager.create(name, 'admin');
+
+      // Create admin participant
+      store.participants.add({
+        userId: 'admin',
+        displayName: 'Admin',
+        type: 'human',
+        tokenHash: hashToken(adminToken),
+      });
+
+      res.status(201).json({
+        channel,
+        adminToken,
+        mcpEndpoint: `/mcp/${channel.id}`,
+      });
+    } catch (err) {
+      handleError(res, err);
+    }
+  });
+
+  // List channels
+  app.get('/api/channels', (_req, res) => {
+    try {
+      const channels = channelManager.list();
+      res.json({ channels });
+    } catch (err) {
+      handleError(res, err);
+    }
+  });
+
+  // Invite user to channel (creates participant + token)
+  app.post('/api/channels/:channelId/invite', (req, res) => {
+    try {
+      const { channelId } = req.params;
+      const { userId, displayName, type, agentName } = req.body;
+
+      if (!userId || !displayName) {
+        throw new ValidationError('userId and displayName are required');
+      }
+
+      // Auth: only existing participants can invite
+      authenticateRequest(channelManager, channelId, req.headers.authorization);
+
+      const store = channelManager.getOrLoad(channelId);
+      const token = generateToken();
+      const participant = store.participants.add({
+        userId,
+        displayName,
+        type: type || 'human',
+        agentName,
+        tokenHash: hashToken(token),
+      });
+
+      res.status(201).json({
+        participant: {
+          id: participant.id,
+          userId: participant.userId,
+          displayName: participant.displayName,
+          type: participant.type,
+          agentName: participant.agentName,
+        },
+        token,
+        mcpConfig: {
+          type: 'streamableHttp',
+          url: `http://localhost:${process.env.AGORA_PORT ?? 3000}/mcp/${channelId}`,
+          headers: {
+            Authorization: `Bearer ${token}`,
+          },
+        },
+      });
+    } catch (err) {
+      handleError(res, err);
+    }
+  });
+
+  // List participants in a channel
+  app.get('/api/channels/:channelId/participants', (req, res) => {
+    try {
+      const { channelId } = req.params;
+      authenticateRequest(channelManager, channelId, req.headers.authorization);
+      const store = channelManager.getOrLoad(channelId);
+      const participants = store.participants.list().map((p) => ({
+        id: p.id,
+        userId: p.userId,
+        displayName: p.displayName,
+        type: p.type,
+        agentName: p.agentName,
+        joinedAt: p.joinedAt,
+        lastSeenAt: p.lastSeenAt,
+      }));
+      res.json({ participants });
+    } catch (err) {
+      handleError(res, err);
+    }
+  });
+
+  // Remove participant
+  app.delete('/api/channels/:channelId/participants/:participantId', (req, res) => {
+    try {
+      const { channelId, participantId } = req.params;
+      authenticateRequest(channelManager, channelId, req.headers.authorization);
+      const store = channelManager.getOrLoad(channelId);
+      const removed = store.participants.remove(participantId);
+      if (!removed) throw new NotFoundError(`Participant: ${participantId}`);
+      res.json({ removed: true });
+    } catch (err) {
+      handleError(res, err);
+    }
+  });
+
+  // Health check
+  app.get('/health', (_req, res) => {
+    res.json({ status: 'ok', version: '0.1.0' });
+  });
+
+  return { app, sessionManager };
+}
+
+function handleError(res: express.Response, err: unknown): void {
+  if (err instanceof AgoraError) {
+    res.status(err.statusCode).json({ error: err.message, code: err.code });
+  } else {
+    console.error('Unhandled error:', err);
+    res.status(500).json({ error: 'Internal server error' });
+  }
+}
