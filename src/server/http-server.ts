@@ -229,7 +229,7 @@ export function createApp(channelManager: ChannelManager) {
         token,
         mcpConfig: {
           type: 'streamableHttp',
-          url: `http://localhost:${process.env.AGORA_PORT ?? 3000}/mcp/${channelId}`,
+          url: `${process.env.AGORA_BASE_URL ?? `http://localhost:${process.env.PORT ?? process.env.AGORA_PORT ?? 3000}`}/mcp/${channelId}`,
           headers: {
             Authorization: `Bearer ${token}`,
           },

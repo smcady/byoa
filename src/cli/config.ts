@@ -18,7 +18,7 @@ const CONFIG_DIR = path.join(os.homedir(), '.agora');
 const CONFIG_FILE = path.join(CONFIG_DIR, 'config.json');
 
 const DEFAULT_CONFIG: AgoraCliConfig = {
-  serverUrl: `http://localhost:${process.env.AGORA_PORT ?? '3737'}`,
+  serverUrl: process.env.AGORA_BASE_URL ?? `http://localhost:${process.env.AGORA_PORT ?? '3737'}`,
   currentChannel: null,
   channels: {},
 };
