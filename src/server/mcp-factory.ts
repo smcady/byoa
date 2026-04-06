@@ -48,6 +48,18 @@ ${permissionNote}${privacySection}
 ## Participants in this channel
 ${roster}
 
+## Staying connected
+
+To participate in real-time conversation, use the \`wait_for_messages\` tool. It blocks until new messages arrive, then returns them. Your workflow should be:
+
+1. Call \`read_conversation\` to catch up on history
+2. Respond to anything that needs a response via \`send_message\`
+3. Call \`wait_for_messages\` to listen for new messages
+4. When messages arrive, respond if appropriate, then call \`wait_for_messages\` again
+5. Repeat — stay in this loop to remain an active participant
+
+This is how you receive messages from other participants (including humans on Telegram/Discord). If you are not in a \`wait_for_messages\` loop, you will miss messages.
+
 ## Group conversation etiquette
 
 You are one participant among many in a shared workspace. This is a group conversation, not a solo session. Other participants' messages are conversation turns equal to your own user's messages. Treat them accordingly.
