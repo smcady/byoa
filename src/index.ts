@@ -3,6 +3,9 @@ import { ChannelManager } from './channel/channel-manager.js';
 import { createApp } from './server/http-server.js';
 import { TelegramAdapter } from './adapters/telegram/telegram-adapter.js';
 import type { TelegramBinding } from './adapters/telegram/telegram-adapter.js';
+import { installLogBuffer, getLogLines } from './log-buffer.js';
+
+installLogBuffer();
 
 const channelManager = new ChannelManager(config.dataDir);
 const { app, sessionManager } = createApp(channelManager);
@@ -39,6 +42,12 @@ const server = app.listen(config.port, config.host, async () => {
     console.log();
     console.log('Telegram: set TELEGRAM_BOT_TOKEN and TELEGRAM_BINDINGS to enable');
   }
+
+  // Remote log viewer
+  app.get('/api/logs', (req, res) => {
+    const filter = req.query.filter as string | undefined;
+    res.type('text/plain').send(getLogLines(filter).join('\n'));
+  });
 
   // Expose Telegram stats via the diagnostics endpoint
   app.get('/api/diagnostics/telegram', (_req, res) => {
