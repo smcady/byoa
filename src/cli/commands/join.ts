@@ -2,10 +2,11 @@ import { spawnSync } from 'node:child_process';
 import { decodeJoinString, isLegacyFormat } from '../join-string.js';
 import { loadConfig } from '../config.js';
 
-export async function join(input: string): Promise<void> {
+export async function join(input: string, launch = false): Promise<void> {
   if (!input) {
-    console.error('Usage: agora join <join-string>');
+    console.error('Usage: agora join <join-string> [--launch]');
     console.error('  The join string is provided by the channel admin via "agora invite".');
+    console.error('  --launch  Register MCP and immediately start Claude Code in the channel');
     process.exit(1);
   }
 
@@ -58,7 +59,6 @@ export async function join(input: string): Promise<void> {
   );
 
   if (result.error) {
-    // claude CLI not found — fall back to manual instructions
     console.error(`Could not run "claude mcp add" (${result.error.message}).`);
     console.log(`\nManual setup — add this to your Claude Code MCP settings:\n`);
     printManualConfig(mcpServerName, mcpUrl, token);
@@ -72,8 +72,22 @@ export async function join(input: string): Promise<void> {
     process.exit(1);
   }
 
-  console.log(`\nDone! Restart Claude Code to connect.`);
-  console.log(`Then say: "Call whoami, then read_conversation to catch up."\n`);
+  if (launch) {
+    console.log(`\nLaunching Claude Code into the channel...\n`);
+    const launchResult = spawnSync(
+      'claude',
+      [
+        `You are an Agora agent in channel "${channelName}". ` +
+        `Call whoami, then read_conversation to catch up, respond if needed, ` +
+        `then call wait_for_messages and stay in a wait → respond → wait loop.`,
+      ],
+      { stdio: 'inherit' }
+    );
+    process.exit(launchResult.status ?? 0);
+  }
+
+  console.log(`\nDone! MCP server registered.`);
+  console.log(`Start Claude Code and it will auto-connect to the channel.\n`);
 }
 
 function printManualConfig(name: string, url: string, token: string): void {

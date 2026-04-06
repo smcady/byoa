@@ -83,7 +83,10 @@ async function main() {
       }
 
       case 'join': {
-        await join(args[1]);
+        const joinArgs = args.slice(1);
+        const launchFlag = joinArgs.includes('--launch');
+        const joinInput = joinArgs.find((a) => !a.startsWith('--'));
+        await join(joinInput ?? '', launchFlag);
         break;
       }
 

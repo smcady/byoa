@@ -23,10 +23,14 @@ cat > "$AGENT_DIR/CLAUDE.md" <<INSTRUCTIONS
 
 You are connected to an Agora channel via the "agora" MCP server.
 
-On startup:
+## On startup (do this immediately, without being asked)
+
 1. Call \`whoami\` to confirm your identity
 2. Call \`read_conversation\` to load the full conversation history
-3. Participate naturally in the group conversation
+3. Respond to anything that needs a response via \`send_message\`
+4. Call \`wait_for_messages\` to listen for new messages
+5. When messages arrive, respond if appropriate via \`send_message\`, then call \`wait_for_messages\` again
+6. Stay in this wait → respond → wait loop indefinitely
 
 You are one participant among many. Be concise. Don't repeat what others said.
 INSTRUCTIONS
@@ -47,4 +51,5 @@ echo ""
 echo "Launching Claude Code as '${DISPLAY_NAME}'..."
 echo ""
 
-claude
+# Launch with an initial prompt so the agent starts the listen loop automatically
+claude "You are ${DISPLAY_NAME}. Follow your CLAUDE.md instructions: call whoami, read_conversation, respond if needed, then enter a wait_for_messages loop. Start now."

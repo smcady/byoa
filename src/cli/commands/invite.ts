@@ -58,7 +58,7 @@ export async function invite(opts: InviteOpts): Promise<void> {
   console.log(`Token:   ${result.token}`);
 
   console.log(`\n── Send this to your colleague ──\n`);
-  console.log(`  npx agora join ${joinString}`);
-  console.log(`\nThat single command configures their Claude Code to connect.`);
-  console.log(`They just need to restart Claude Code afterward.\n`);
+  console.log(`  npx agora join ${joinString} --launch`);
+  console.log(`\nThat single command registers the MCP server and launches`);
+  console.log(`Claude Code directly into the channel conversation.\n`);
 }
