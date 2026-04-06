@@ -343,12 +343,18 @@ export function createApp(channelManager: ChannelManager) {
   // Diagnostic endpoint for Telegram adapter and general status
   app.get('/api/diagnostics', (_req, res) => {
     const channels = channelManager.list();
-    const sessions = sessionManager.activeSessions();
+    const sessionsDetail = sessionManager.listAll().map((s) => ({
+      channelId: s.channelId,
+      participant: s.participant.displayName,
+      participantId: s.participant.id,
+      type: s.participant.type,
+    }));
     res.json({
       status: 'ok',
       uptime: process.uptime(),
       channels: channels.length,
-      activeSessions: sessions,
+      activeSessions: sessionsDetail.length,
+      sessions: sessionsDetail,
     });
   });
 

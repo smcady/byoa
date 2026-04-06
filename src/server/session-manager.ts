@@ -34,8 +34,10 @@ export class SessionManager {
    */
   broadcastMessage(channelId: string, message: Message, senderParticipantId: string): void {
     const sessions = this.listByChannel(channelId);
+    console.log(`[broadcast] channel=${channelId} sender=${senderParticipantId} sessions=${sessions.length} totalSessions=${this.sessions.size}`);
     for (const session of sessions) {
       if (session.participant.id === senderParticipantId) continue;
+      console.log(`[broadcast] -> sending to ${session.participant.displayName} (${session.participant.id})`);
       session.server
         .sendLoggingMessage({
           level: 'info',
@@ -54,14 +56,21 @@ export class SessionManager {
             },
           },
         })
-        .catch(() => {
-          // Session may have disconnected — ignore
+        .then(() => {
+          console.log(`[broadcast] -> delivered to ${session.participant.displayName}`);
+        })
+        .catch((err) => {
+          console.error(`[broadcast] -> FAILED to deliver to ${session.participant.displayName}:`, err.message ?? err);
         });
     }
   }
 
   activeSessions(): number {
     return this.sessions.size;
+  }
+
+  listAll(): SessionInfo[] {
+    return [...this.sessions.values()];
   }
 
   closeAll(): void {
