@@ -50,8 +50,8 @@ export class TelegramAdapter implements PlatformAdapter {
         this.reverseBindings.set(binding.channelId, binding.chatId);
         console.log(`[telegram] Binding resolved successfully`);
       } catch (err) {
-        console.error(`[telegram] Failed to resolve binding for channel ${binding.channelId}:`, err);
-        throw err;
+        console.error(`[telegram] Failed to resolve binding for channel ${binding.channelId} — skipping:`, err);
+        continue;
       }
     }
 

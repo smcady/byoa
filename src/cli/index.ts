@@ -5,8 +5,29 @@ import { channelList } from './commands/channel-list.js';
 import { invite } from './commands/invite.js';
 import { join } from './commands/join.js';
 import { status } from './commands/status.js';
+import { loadConfig, saveConfig } from './config.js';
 
-const args = process.argv.slice(2);
+const rawArgs = process.argv.slice(2);
+
+// Extract --server flag before command parsing
+let serverOverride: string | undefined;
+const args: string[] = [];
+for (let i = 0; i < rawArgs.length; i++) {
+  if (rawArgs[i] === '--server' && i + 1 < rawArgs.length) {
+    serverOverride = rawArgs[i + 1];
+    i++; // skip value
+  } else {
+    args.push(rawArgs[i]);
+  }
+}
+
+// Apply server override to config
+if (serverOverride) {
+  const config = loadConfig();
+  config.serverUrl = serverOverride.replace(/\/$/, ''); // strip trailing slash
+  saveConfig(config);
+}
+
 const command = args[0];
 
 function parseFlags(args: string[]): Record<string, string> {
@@ -75,24 +96,31 @@ async function main() {
         console.log(`
 Agora CLI — multi-user multi-agent workspace
 
+Usage:
+  agora [--server <url>] <command> [options]
+
 Commands:
   agora channel create <name>     Create a new channel
   agora channel list              List all channels
-  agora invite <name> [options]   Invite a participant to the active channel
-  agora join <channelId:token>    Join a channel and configure MCP
+  agora invite <name> [options]   Invite a participant (outputs a join command)
+  agora join <join-string>        Join a channel and configure Claude Code
   agora status                    Show active channel and participants
+
+Server:
+  --server <url>                  Set the Agora server URL (saved for future commands)
+                                  Default: http://localhost:3737
 
 Invite options:
   --type <human|agent>            Participant type (default: human)
   --agent-name <name>             Agent name (e.g. claude-code)
   --channel <id>                  Target channel (default: active channel)
 
-Examples:
-  agora channel create my-project
-  agora invite "Alice Claude" --type agent --agent-name claude-code
-  agora invite "Bob" --type human
-  agora join chan_abc123:agora_tok_xyz...
-  agora status
+Quick start (admin):
+  agora --server https://your-server.example.com channel create my-project
+  agora invite "Alice Agent" --type agent --agent-name claude-code
+
+Quick start (colleague):
+  npx agora join <join-string>    # paste the string from the invite output
 `);
     }
   } catch (err: unknown) {

@@ -1,5 +1,6 @@
 import { ApiClient } from '../api-client.js';
 import { loadConfig, saveConfig, getCurrentChannel } from '../config.js';
+import { encodeJoinString } from '../join-string.js';
 
 interface InviteOpts {
   displayName: string;
@@ -50,29 +51,14 @@ export async function invite(opts: InviteOpts): Promise<void> {
   creds.tokens[opts.displayName] = result.token;
   saveConfig(config);
 
-  const channelName = creds.name.toLowerCase().replace(/\s+/g, '-');
+  // Generate join string
+  const joinString = encodeJoinString(config.serverUrl, channelId, result.token);
 
   console.log(`\nInvited: ${result.participant.displayName} (${result.participant.type})`);
   console.log(`Token:   ${result.token}`);
 
-  if (opts.type === 'agent') {
-    console.log(`\n── MCP config (paste into Claude Code settings) ──\n`);
-    const mcpConfig = {
-      [`agora-${channelName}`]: {
-        type: 'http',
-        url: `${config.serverUrl}/mcp/${channelId}`,
-        headers: {
-          Authorization: `Bearer ${result.token}`,
-        },
-      },
-    };
-    console.log(JSON.stringify(mcpConfig, null, 2));
-
-    console.log(`\n── Or join automatically ──\n`);
-    console.log(`  agora join ${channelId}:${result.token}`);
-  } else {
-    console.log(`\nThis human can chat via Telegram (if bridge is configured).`);
-    console.log(`Or join as an MCP participant: agora join ${channelId}:${result.token}`);
-  }
-  console.log();
+  console.log(`\n── Send this to your colleague ──\n`);
+  console.log(`  npx agora join ${joinString}`);
+  console.log(`\nThat single command configures their Claude Code to connect.`);
+  console.log(`They just need to restart Claude Code afterward.\n`);
 }
