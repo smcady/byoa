@@ -4,9 +4,13 @@
   "description": "Multi-user, multi-agent collaborative workspace via MCP",
   "type": "module",
   "main": "dist/index.js",
+  "bin": {
+    "agora": "./dist/cli/index.js"
+  },
   "scripts": {
     "build": "tsc",
     "dev": "tsx src/index.ts",
+    "cli": "tsx src/cli/index.ts",
     "test": "vitest run",
     "test:watch": "vitest"
   },
