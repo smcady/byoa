@@ -8,6 +8,14 @@ export function registerMessagingTools(
   store: ChannelStore,
   participant: Participant
 ): void {
+  // Track the rowid at the time wait_for_messages last resolved.
+  // Used by send_message to detect new messages that arrived during COT.
+  let lastDeliveredRowid = 0;
+
+  // Track whether this is the first send after a checkpoint bounce.
+  // If true, send unconditionally (cap bounces at 1).
+  let checkpointUsed = false;
+
   server.registerTool(
     'send_message',
     {
@@ -22,7 +30,45 @@ export function registerMessagingTools(
       },
     },
     async ({ content, type }) => {
+      // Layer 2: Checkpoint — check for new messages since wait_for_messages resolved.
+      // Skip checkpoint if we already bounced once (cap at 1).
+      if (!checkpointUsed && lastDeliveredRowid > 0) {
+        const newMessages = store.getMessagesSinceRowid(lastDeliveredRowid, participant.id);
+
+        if (newMessages.length > 0) {
+          // New messages arrived while the agent was composing.
+          // Don't send yet — return the new context and let the agent decide.
+          checkpointUsed = true; // Next send will go through unconditionally
+
+          const newContext = newMessages
+            .map((m) => {
+              const name = m.displayName ?? m.participantId;
+              const role = m.agentName ? `${m.agentName}` : m.participantType ?? 'unknown';
+              return `[${name} (${role})] ${m.content}`;
+            })
+            .join('\n\n');
+
+          return {
+            content: [
+              {
+                type: 'text' as const,
+                text:
+                  `⚡ New messages arrived while you were composing:\n\n` +
+                  `${newContext}\n\n` +
+                  `Your draft: "${content}"\n\n` +
+                  `Review the new messages alongside your draft. Then either:\n` +
+                  `- Call send_message again with your original or revised content to send\n` +
+                  `- Call wait_for_messages to skip and keep listening`,
+              },
+            ],
+          };
+        }
+      }
+
+      // Post the message
       const msg = store.addMessage(participant.id, content, type);
+      checkpointUsed = false; // Reset for next cycle
+
       return {
         content: [
           {
@@ -79,10 +125,10 @@ export function registerMessagingTools(
     'wait_for_messages',
     {
       description:
-        'Block until new messages arrive in the channel, then return them. ' +
-        'Use this to listen for incoming messages in real-time. ' +
-        'Call this in a loop to continuously participate in the conversation: ' +
-        'wait_for_messages → read and respond with send_message → wait_for_messages again.',
+        'Block until new messages arrive in the channel, then return them along with ' +
+        'composing indicators and recent context. Use this in a loop: ' +
+        'wait_for_messages → respond if needed → wait_for_messages. ' +
+        'Read everything returned before deciding whether to respond.',
       inputSchema: {
         timeout_seconds: z
           .number()
@@ -94,35 +140,30 @@ export function registerMessagingTools(
     async ({ timeout_seconds }) => {
       const timeout = Math.min(timeout_seconds, 300) * 1000;
 
-      const messages = await new Promise<Message[]>((resolve) => {
-        const collected: Message[] = [];
+      // Clear composing state — we're now waiting
+      store.clearComposing(participant.id);
+      checkpointUsed = false; // Reset checkpoint for new cycle
+
+      const triggerMessage = await new Promise<Message | null>((resolve) => {
         let timer: ReturnType<typeof setTimeout>;
-        let debounce: ReturnType<typeof setTimeout>;
 
         const handler = (msg: Message) => {
-          // Don't return our own messages
+          // Don't trigger on our own messages
           if (msg.participantId === participant.id) return;
-          collected.push(msg);
-          // Debounce: wait 500ms after last message in case multiple arrive together
-          clearTimeout(debounce);
-          debounce = setTimeout(() => {
-            clearTimeout(timer);
-            store.removeListener('message:new', handler);
-            resolve(collected);
-          }, 500);
+          clearTimeout(timer);
+          store.removeListener('message:new', handler);
+          resolve(msg);
         };
 
         store.on('message:new', handler);
 
-        // Timeout — return whatever we have (possibly empty)
         timer = setTimeout(() => {
           store.removeListener('message:new', handler);
-          clearTimeout(debounce);
-          resolve(collected);
+          resolve(null);
         }, timeout);
       });
 
-      if (messages.length === 0) {
+      if (!triggerMessage) {
         return {
           content: [
             {
@@ -133,19 +174,34 @@ export function registerMessagingTools(
         };
       }
 
-      const formatted = messages
-        .map((m) => {
-          const name = m.displayName ?? m.participantId;
-          const role = m.agentName ? `${m.agentName}` : m.participantType ?? 'unknown';
-          return `[${name} (${role})] ${m.content}`;
-        })
-        .join('\n\n');
+      // Mark ourselves as composing — other agents will see this
+      store.setComposing(participant.id, participant.displayName);
+
+      // Record the current rowid for the send_message checkpoint
+      lastDeliveredRowid = store.getLatestRowid();
+
+      // Layer 1: Rich context — include composing state and recent messages
+      const othersComposing = store.getComposing(participant.id);
+      const recentMessages = store.messages.list({ limit: 15 });
+
+      const parts: string[] = [];
+
+      if (othersComposing.length > 0) {
+        parts.push(`Currently composing: ${othersComposing.join(', ')}`);
+      }
+
+      parts.push('--- Recent messages ---');
+      for (const m of recentMessages) {
+        const name = m.displayName ?? m.participantId;
+        const role = m.agentName ? `${m.agentName}` : m.participantType ?? 'unknown';
+        parts.push(`[${name} (${role})] ${m.content}`);
+      }
 
       return {
         content: [
           {
             type: 'text' as const,
-            text: formatted,
+            text: parts.join('\n\n'),
           },
         ],
       };

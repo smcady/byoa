@@ -72,6 +72,9 @@ export class ChannelStore extends EventEmitter {
   readonly participants: ParticipantStore;
   private db: Database.Database;
 
+  /** Tracks which participants are currently composing (participantId -> displayName) */
+  private composing = new Map<string, string>();
+
   constructor(channelId: string, dataDir: string) {
     super();
     this.channelId = channelId;
@@ -89,12 +92,71 @@ export class ChannelStore extends EventEmitter {
     this.participants = new ParticipantStore(this.db, channelId);
   }
 
+  /** Get the rowid of the most recent message, or 0 if none. */
+  getLatestRowid(): number {
+    const row = this.db.prepare('SELECT MAX(rowid) as maxRowid FROM messages').get() as { maxRowid: number | null };
+    return row?.maxRowid ?? 0;
+  }
+
+  /** Get messages with rowid > afterRowid (for checkpoint diffing). */
+  getMessagesSinceRowid(afterRowid: number, excludeParticipantId?: string): Message[] {
+    let query = `SELECT m.*, p.display_name, p.type AS participant_type, p.agent_name
+      FROM messages m LEFT JOIN participants p ON m.participant_id = p.id
+      WHERE m.rowid > ?`;
+    const params: unknown[] = [afterRowid];
+
+    if (excludeParticipantId) {
+      query += ` AND m.participant_id != ?`;
+      params.push(excludeParticipantId);
+    }
+
+    query += ` ORDER BY m.rowid ASC LIMIT 50`;
+
+    const rows = this.db.prepare(query).all(...params) as Array<{
+      id: string; participant_id: string; type: string; content: string;
+      metadata: string | null; created_at: string;
+      display_name: string | null; participant_type: string | null; agent_name: string | null;
+    }>;
+
+    return rows.map((r) => ({
+      id: r.id,
+      channelId: this.channelId,
+      participantId: r.participant_id,
+      displayName: r.display_name ?? undefined,
+      participantType: (r.participant_type as 'human' | 'agent') ?? undefined,
+      agentName: r.agent_name ?? undefined,
+      type: r.type as Message['type'],
+      content: r.content,
+      metadata: r.metadata ? JSON.parse(r.metadata) : undefined,
+      createdAt: r.created_at,
+    }));
+  }
+
+  setComposing(participantId: string, displayName: string): void {
+    this.composing.set(participantId, displayName);
+  }
+
+  clearComposing(participantId: string): void {
+    this.composing.delete(participantId);
+  }
+
+  getComposing(excludeParticipantId?: string): string[] {
+    const names: string[] = [];
+    for (const [id, name] of this.composing) {
+      if (id !== excludeParticipantId) names.push(name);
+    }
+    return names;
+  }
+
   addMessage(
     participantId: string,
     content: string,
     type: Message['type'] = 'text',
     metadata?: Record<string, string>
   ): Message {
+    // Sending a message clears composing state
+    this.composing.delete(participantId);
+
     const msg = this.messages.add(participantId, content, type, metadata);
     // Enrich with participant identity for broadcast
     const participant = this.participants.getById(participantId);
