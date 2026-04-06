@@ -60,6 +60,10 @@ export class SessionManager {
     }
   }
 
+  activeSessions(): number {
+    return this.sessions.size;
+  }
+
   closeAll(): void {
     for (const info of this.sessions.values()) {
       info.transport.close().catch(() => {});

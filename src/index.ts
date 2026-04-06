@@ -39,6 +39,15 @@ const server = app.listen(config.port, config.host, async () => {
     console.log();
     console.log('Telegram: set TELEGRAM_BOT_TOKEN and TELEGRAM_BINDINGS to enable');
   }
+
+  // Expose Telegram stats via the diagnostics endpoint
+  app.get('/api/diagnostics/telegram', (_req, res) => {
+    if (!telegramAdapter) {
+      res.json({ enabled: false });
+      return;
+    }
+    res.json({ enabled: true, ...telegramAdapter.getStats() });
+  });
 });
 
 process.on('SIGINT', async () => {

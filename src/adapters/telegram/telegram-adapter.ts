@@ -22,9 +22,14 @@ export class TelegramAdapter implements PlatformAdapter {
   private bot: Bot;
   private bindings: Map<number, { channelId: string; store: ChannelStore }>;
   private reverseBindings: Map<string, number>;
-  /** Track participant IDs for Telegram users (chatId:userId -> participantId) */
+  /** Track participant IDs: chatId:telegramUserId -> agoraParticipantId */
   private telegramParticipants = new Map<string, string>();
+  /** Set of Agora participant IDs that originated from Telegram — for echo suppression */
+  private telegramParticipantIds = new Set<string>();
   private eventCleanups: Array<() => void> = [];
+
+  /** Diagnostic stats exposed via getStats() */
+  private stats = { messagesReceived: 0, messagesSent: 0, errors: 0, lastError: '' };
 
   constructor(
     private config: TelegramAdapterConfig,
@@ -38,37 +43,59 @@ export class TelegramAdapter implements PlatformAdapter {
   async start(): Promise<void> {
     // Resolve bindings
     for (const binding of this.config.bindings) {
-      const store = this.channelManager.getOrLoad(binding.channelId);
-      this.bindings.set(binding.chatId, { channelId: binding.channelId, store });
-      this.reverseBindings.set(binding.channelId, binding.chatId);
+      console.log(`[telegram] Resolving binding: chatId=${binding.chatId} -> channelId=${binding.channelId}`);
+      try {
+        const store = this.channelManager.getOrLoad(binding.channelId);
+        this.bindings.set(binding.chatId, { channelId: binding.channelId, store });
+        this.reverseBindings.set(binding.channelId, binding.chatId);
+        console.log(`[telegram] Binding resolved successfully`);
+      } catch (err) {
+        console.error(`[telegram] Failed to resolve binding for channel ${binding.channelId}:`, err);
+        throw err;
+      }
     }
 
     // Telegram → Agora: forward incoming messages to channel
     this.bot.on('message:text', async (ctx) => {
       const chatId = ctx.chat.id;
       const binding = this.bindings.get(chatId);
-      if (!binding) return; // Message from unbound chat — ignore
+      if (!binding) {
+        console.log(`[telegram] Ignoring message from unbound chat ${chatId}`);
+        return;
+      }
 
       const telegramUser = ctx.from;
       if (!telegramUser || telegramUser.is_bot) return;
 
-      // Get or create participant for this Telegram user
-      const participantId = this.ensureParticipant(binding.store, chatId, telegramUser);
-      binding.store.addMessage(participantId, ctx.message.text);
+      this.stats.messagesReceived++;
+      console.log(`[telegram] Received message from ${telegramUser.first_name} (tg:${telegramUser.id}) in chat ${chatId}: "${ctx.message.text.slice(0, 50)}..."`);
+
+      try {
+        // Get or create participant for this Telegram user
+        const participantId = this.ensureParticipant(binding.store, chatId, telegramUser);
+        binding.store.addMessage(participantId, ctx.message.text);
+        console.log(`[telegram] Message stored as participant ${participantId}`);
+      } catch (err) {
+        this.stats.errors++;
+        this.stats.lastError = String(err);
+        console.error(`[telegram] Error processing message from ${telegramUser.first_name}:`, err);
+      }
     });
 
     // Agora → Telegram: forward channel messages to Telegram
     for (const [chatId, { channelId, store }] of this.bindings) {
       const handler = (message: Message) => {
-        // Don't echo back messages that came from Telegram
-        const senderKey = `${chatId}:${message.participantId}`;
-        if (this.telegramParticipants.has(senderKey)) return;
+        // Don't echo back messages that originated from Telegram
+        if (this.telegramParticipantIds.has(message.participantId)) return;
 
         const name = message.displayName ?? message.participantId;
         const role = message.agentName ? `${message.agentName}` : message.participantType ?? 'unknown';
         const formatted = `<b>${this.escapeHtml(name)}</b> <i>[${this.escapeHtml(role)}]</i>\n${this.escapeHtml(message.content)}`;
 
+        this.stats.messagesSent++;
         this.bot.api.sendMessage(chatId, formatted, { parse_mode: 'HTML' }).catch((err) => {
+          this.stats.errors++;
+          this.stats.lastError = String(err);
           console.error(`[telegram] Failed to send to chat ${chatId}:`, err.message);
         });
       };
@@ -81,6 +108,9 @@ export class TelegramAdapter implements PlatformAdapter {
     this.bot.start({
       onStart: () => {
         console.log(`[telegram] Bot started — ${this.bindings.size} binding(s) active`);
+        for (const [chatId, { channelId }] of this.bindings) {
+          console.log(`[telegram]   chat ${chatId} <-> ${channelId}`);
+        }
       },
     });
   }
@@ -89,6 +119,10 @@ export class TelegramAdapter implements PlatformAdapter {
     for (const cleanup of this.eventCleanups) cleanup();
     this.eventCleanups = [];
     this.bot.stop();
+  }
+
+  getStats(): { messagesReceived: number; messagesSent: number; errors: number; lastError: string; bindings: number } {
+    return { ...this.stats, bindings: this.bindings.size };
   }
 
   /**
@@ -110,6 +144,8 @@ export class TelegramAdapter implements PlatformAdapter {
     const found = store.participants.findByTokenHash(stableHash);
     if (found) {
       this.telegramParticipants.set(key, found.id);
+      this.telegramParticipantIds.add(found.id);
+      console.log(`[telegram] Found existing participant for tg:${user.id} -> ${found.id} (${found.displayName})`);
       return found.id;
     }
 
@@ -126,6 +162,8 @@ export class TelegramAdapter implements PlatformAdapter {
     });
 
     this.telegramParticipants.set(key, participant.id);
+    this.telegramParticipantIds.add(participant.id);
+    console.log(`[telegram] Created participant for tg:${user.id} -> ${participant.id} (${displayName})`);
     return participant.id;
   }
 
