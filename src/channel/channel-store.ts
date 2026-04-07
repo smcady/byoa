@@ -51,6 +51,16 @@ CREATE TABLE IF NOT EXISTS read_cursors (
   participant_id TEXT PRIMARY KEY,
   last_read_rowid INTEGER NOT NULL DEFAULT 0
 );
+
+CREATE TABLE IF NOT EXISTS coordination_log (
+  id INTEGER PRIMARY KEY AUTOINCREMENT,
+  ts TEXT NOT NULL DEFAULT (datetime('now')),
+  participant_id TEXT NOT NULL,
+  display_name TEXT NOT NULL,
+  event TEXT NOT NULL,
+  detail TEXT
+);
+CREATE INDEX IF NOT EXISTS idx_coord_log_ts ON coordination_log(ts);
 `;
 
 const MIGRATIONS = [
@@ -129,6 +139,27 @@ export class ChannelStore extends EventEmitter {
       content: r.content,
       metadata: r.metadata ? JSON.parse(r.metadata) : undefined,
       createdAt: r.created_at,
+    }));
+  }
+
+  /** Append a coordination event to the replay log. */
+  logCoordination(participantId: string, displayName: string, event: string, detail?: string): void {
+    this.db.prepare(
+      'INSERT INTO coordination_log (participant_id, display_name, event, detail) VALUES (?, ?, ?, ?)'
+    ).run(participantId, displayName, event, detail ?? null);
+  }
+
+  /** Read recent coordination events for replay review. */
+  getCoordinationLog(limit = 100): Array<{ id: number; ts: string; displayName: string; event: string; detail?: string }> {
+    const rows = this.db.prepare(
+      'SELECT id, ts, display_name, event, detail FROM coordination_log ORDER BY id DESC LIMIT ?'
+    ).all(limit) as Array<{ id: number; ts: string; display_name: string; event: string; detail: string | null }>;
+    return rows.reverse().map((r) => ({
+      id: r.id,
+      ts: r.ts,
+      displayName: r.display_name,
+      event: r.event,
+      detail: r.detail ?? undefined,
     }));
   }
 

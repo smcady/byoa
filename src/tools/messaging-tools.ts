@@ -40,6 +40,12 @@ export function registerMessagingTools(
           // Don't send yet — return the new context and let the agent decide.
           checkpointUsed = true; // Next send will go through unconditionally
 
+          const authors = [...new Set(newMessages.map((m) => m.displayName ?? m.participantId))];
+          store.logCoordination(
+            participant.id, participant.displayName, 'checkpoint_bounce',
+            `draft_len=${content.length} new_msgs=${newMessages.length} from=${authors.join(',')}`
+          );
+
           const newContext = newMessages
             .map((m) => {
               const name = m.displayName ?? m.participantId;
@@ -66,6 +72,11 @@ export function registerMessagingTools(
       }
 
       // Post the message
+      store.logCoordination(
+        participant.id, participant.displayName,
+        checkpointUsed ? 'send_after_bounce' : 'send',
+        `len=${content.length}`
+      );
       const msg = store.addMessage(participant.id, content, type);
       checkpointUsed = false; // Reset for next cycle
 
@@ -164,6 +175,7 @@ export function registerMessagingTools(
       });
 
       if (!triggerMessage) {
+        store.logCoordination(participant.id, participant.displayName, 'wait_timeout');
         return {
           content: [
             {
@@ -182,6 +194,12 @@ export function registerMessagingTools(
 
       // Layer 1: Rich context — include composing state and recent messages
       const othersComposing = store.getComposing(participant.id);
+
+      const triggerAuthor = triggerMessage.displayName ?? triggerMessage.participantId;
+      store.logCoordination(
+        participant.id, participant.displayName, 'wait_resolved',
+        `trigger_from=${triggerAuthor} composing=[${othersComposing.join(',')}]`
+      );
       const recentMessages = store.messages.list({ limit: 15 });
 
       const parts: string[] = [];

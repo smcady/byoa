@@ -49,6 +49,17 @@ const server = app.listen(config.port, config.host, async () => {
     res.type('text/plain').send(getLogLines(filter).join('\n'));
   });
 
+  // Coordination replay log
+  app.get('/api/channels/:channelId/coordination', (req, res) => {
+    const limit = parseInt(req.query.limit as string, 10) || 100;
+    try {
+      const store = channelManager.getOrLoad(req.params.channelId);
+      res.json(store.getCoordinationLog(limit));
+    } catch {
+      res.status(404).json({ error: 'Channel not found' });
+    }
+  });
+
   // Expose Telegram stats via the diagnostics endpoint
   app.get('/api/diagnostics/telegram', (_req, res) => {
     if (!telegramAdapter) {
