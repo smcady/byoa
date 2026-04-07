@@ -7,17 +7,25 @@ export interface SessionInfo {
   server: McpServer;
   participant: Participant;
   channelId: string;
+  lastActivity: number; // Date.now() timestamp
 }
 
 export class SessionManager {
   private sessions = new Map<string, SessionInfo>();
 
   register(sessionId: string, info: SessionInfo): void {
+    info.lastActivity = Date.now();
     this.sessions.set(sessionId, info);
   }
 
   get(sessionId: string): SessionInfo | undefined {
     return this.sessions.get(sessionId);
+  }
+
+  /** Update last activity timestamp for a session. */
+  touch(sessionId: string): void {
+    const session = this.sessions.get(sessionId);
+    if (session) session.lastActivity = Date.now();
   }
 
   remove(sessionId: string): void {
@@ -64,7 +72,14 @@ export class SessionManager {
           console.log(`[broadcast] -> delivered to ${session.participant.displayName}`);
         })
         .catch((err) => {
-          console.error(`[broadcast] -> FAILED to deliver to ${session.participant.displayName}:`, err.message ?? err);
+          console.error(`[broadcast] -> FAILED to deliver to ${session.participant.displayName}, removing dead session:`, err.message ?? err);
+          // Find and remove this dead session
+          for (const [sid, s] of this.sessions) {
+            if (s === session) {
+              this.sessions.delete(sid);
+              break;
+            }
+          }
         });
     }
   }

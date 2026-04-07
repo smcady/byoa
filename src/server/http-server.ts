@@ -59,6 +59,7 @@ export function createApp(channelManager: ChannelManager) {
             res.status(403).json({ error: 'Session does not belong to this token' });
             return;
           }
+          sessionManager.touch(sessionId);
           await session.transport.handleRequest(req, res, req.body);
           return;
         }
@@ -73,6 +74,7 @@ export function createApp(channelManager: ChannelManager) {
               server: mcpServer,
               participant,
               channelId,
+              lastActivity: Date.now(),
             });
           },
           onsessionclosed: (closedSessionId: string) => {
