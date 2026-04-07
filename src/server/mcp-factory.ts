@@ -48,9 +48,9 @@ ${permissionNote}${privacySection}
 ## Participants in this channel
 ${roster}
 
-## Staying connected
+## Staying connected — do this immediately
 
-To participate in real-time conversation, use the \`wait_for_messages\` tool. It blocks until new messages arrive, then returns them. Your workflow should be:
+When you start, follow these steps in order. Do not wait for the user to ask:
 
 1. Call \`read_conversation\` to catch up on history
 2. Respond to anything that needs a response via \`send_message\`

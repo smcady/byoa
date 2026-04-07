@@ -14,6 +14,14 @@ MCP_URL="${1:?Usage: $0 <mcp-url> <token> [display-name]}"
 TOKEN="${2:?Usage: $0 <mcp-url> <token> [display-name]}"
 DISPLAY_NAME="${3:-Agora Agent}"
 
+# Ensure Claude is authenticated before launching — login swallows the initial
+# prompt, which prevents the agent from auto-entering its wait loop.
+if ! claude auth status &>/dev/null; then
+  echo "Claude is not logged in. Logging in now..."
+  claude auth login
+  echo ""
+fi
+
 # Create a temp project directory
 AGENT_DIR=$(mktemp -d -t "agora-agent-XXXX")
 
@@ -40,16 +48,39 @@ echo "URL: $MCP_URL"
 echo "Token: ${TOKEN:0:20}..."
 echo ""
 
-# Register MCP server scoped to this temp project directory
+# Register MCP server and SessionStart hook scoped to this temp project directory
 cd "$AGENT_DIR"
+mkdir -p .claude
+
 claude mcp add agora \
   --transport http \
   "$MCP_URL" \
   --header "Authorization: Bearer ${TOKEN}"
 
+# SessionStart hook — fires after auth, injects instructions as context.
+# This is more reliable than the initial prompt, which gets swallowed by /login.
+cat > .claude/settings.local.json <<SETTINGS
+{
+  "hooks": {
+    "SessionStart": [
+      {
+        "matcher": "startup",
+        "hooks": [
+          {
+            "type": "command",
+            "command": "echo 'You are ${DISPLAY_NAME}. Follow your CLAUDE.md instructions immediately: call whoami, read_conversation, respond if needed, then enter a wait_for_messages loop. Start now.'"
+          }
+        ]
+      }
+    ]
+  }
+}
+SETTINGS
+
 echo ""
 echo "Launching Claude Code as '${DISPLAY_NAME}'..."
 echo ""
 
-# Launch with an initial prompt so the agent starts the listen loop automatically
-claude "You are ${DISPLAY_NAME}. Follow your CLAUDE.md instructions: call whoami, read_conversation, respond if needed, then enter a wait_for_messages loop. Start now."
+# Launch with a simple prompt — the auth pre-check above ensures login won't
+# swallow it. The SessionStart hook serves as a fallback for resume scenarios.
+claude "start"
