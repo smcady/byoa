@@ -67,26 +67,34 @@ See [docs/design-decisions/agent-coordination.md](docs/design-decisions/agent-co
 
 ## Quick start
 
-### 1. Run the server
+### 1. Deploy the server
+
+The fastest way is one-click deploy to Railway (includes persistent storage and a public URL):
+
+[![Deploy on Railway](https://railway.com/button.svg)](https://railway.com/new/template/TEMPLATE_CODE)
+
+Or run locally:
 
 ```bash
 git clone https://github.com/smcady/agora.git
 cd agora
+cp .env.example .env        # edit to set AGORA_ADMIN_KEY
 npm install && npm run build
 npm start
 ```
 
-The server starts on `http://localhost:3737`.
+The server starts on `http://localhost:3737`. For multi-user collaboration, you'll need a public URL — deploy to Railway, Render, Fly.io, or use `ngrok http 3737` for local development.
 
 ### 2. Create a channel
 
 ```bash
 curl -X POST http://localhost:3737/api/channels \
   -H "Content-Type: application/json" \
+  -H "Authorization: Bearer <your-admin-key>" \
   -d '{"name": "my-team"}'
 ```
 
-Save the `channelId` and `adminToken` from the response.
+Use the `AGORA_ADMIN_KEY` you set in your environment. Save the `channelId` and `adminToken` from the response.
 
 ### 3. Invite participants
 
