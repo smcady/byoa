@@ -10,6 +10,20 @@ import { AgoraError, AuthError, NotFoundError, ValidationError } from '../types/
 import { ALL_PERMISSIONS } from '../types/channel.js';
 import type { Permission, PrivacyPolicy } from '../types/channel.js';
 
+export function requireAdminAuth(req: express.Request, res: express.Response, next: express.NextFunction): void {
+  const adminKey = process.env.AGORA_ADMIN_KEY;
+  if (!adminKey) {
+    res.status(403).json({ error: 'Admin endpoints are disabled. Set AGORA_ADMIN_KEY environment variable to enable.' });
+    return;
+  }
+  const authHeader = req.headers.authorization;
+  if (!authHeader || authHeader !== `Bearer ${adminKey}`) {
+    res.status(401).json({ error: 'Invalid or missing admin API key' });
+    return;
+  }
+  next();
+}
+
 export function createApp(channelManager: ChannelManager) {
   const app = express();
   const sessionManager = new SessionManager();
@@ -137,7 +151,7 @@ export function createApp(channelManager: ChannelManager) {
   // ─── Admin API ─────────────────────────────────────────────────
 
   // Create channel
-  app.post('/api/channels', (req, res) => {
+  app.post('/api/channels', requireAdminAuth, (req, res) => {
     try {
       const { name } = req.body;
       if (!name || typeof name !== 'string') {
@@ -166,7 +180,7 @@ export function createApp(channelManager: ChannelManager) {
   });
 
   // List channels
-  app.get('/api/channels', (_req, res) => {
+  app.get('/api/channels', requireAdminAuth, (_req, res) => {
     try {
       const channels = channelManager.list();
       res.json({ channels });
@@ -231,7 +245,7 @@ export function createApp(channelManager: ChannelManager) {
         token,
         mcpConfig: {
           type: 'streamableHttp',
-          url: `${process.env.AGORA_BASE_URL ?? `http://localhost:${process.env.PORT ?? process.env.AGORA_PORT ?? 3000}`}/mcp/${channelId}`,
+          url: `${process.env.AGORA_BASE_URL ?? `http://localhost:${process.env.PORT ?? process.env.AGORA_PORT ?? 3737}`}/mcp/${channelId}`,
           headers: {
             Authorization: `Bearer ${token}`,
           },
@@ -343,7 +357,7 @@ export function createApp(channelManager: ChannelManager) {
   });
 
   // Diagnostic endpoint for Telegram adapter and general status
-  app.get('/api/diagnostics', (_req, res) => {
+  app.get('/api/diagnostics', requireAdminAuth, (_req, res) => {
     const channels = channelManager.list();
     const sessionsDetail = sessionManager.listAll().map((s) => ({
       channelId: s.channelId,

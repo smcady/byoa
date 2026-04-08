@@ -7,12 +7,15 @@ import { ChannelManager } from '../src/channel/channel-manager.js';
 import { createApp } from '../src/server/http-server.js';
 import { generateToken, hashToken } from '../src/auth/tokens.js';
 
+const TEST_ADMIN_KEY = 'test-admin-key-for-integration';
+
 let server: Server;
 let baseUrl: string;
 let tmpDir: string;
 let channelManager: ChannelManager;
 
 beforeAll(async () => {
+  process.env.AGORA_ADMIN_KEY = TEST_ADMIN_KEY;
   tmpDir = fs.mkdtempSync(path.join(os.tmpdir(), 'agora-int-test-'));
   channelManager = new ChannelManager(tmpDir);
   const { app } = createApp(channelManager);
@@ -29,6 +32,7 @@ beforeAll(async () => {
 });
 
 afterAll(() => {
+  delete process.env.AGORA_ADMIN_KEY;
   channelManager.closeAll();
   server.close();
   fs.rmSync(tmpDir, { recursive: true, force: true });
@@ -39,7 +43,10 @@ afterAll(() => {
 async function createChannel(name: string) {
   const res = await fetch(`${baseUrl}/api/channels`, {
     method: 'POST',
-    headers: { 'Content-Type': 'application/json' },
+    headers: {
+      'Content-Type': 'application/json',
+      Authorization: `Bearer ${TEST_ADMIN_KEY}`,
+    },
     body: JSON.stringify({ name }),
   });
   return res.json();
@@ -197,7 +204,9 @@ describe('Admin API', () => {
   });
 
   it('lists channels', async () => {
-    const res = await fetch(`${baseUrl}/api/channels`);
+    const res = await fetch(`${baseUrl}/api/channels`, {
+      headers: { Authorization: `Bearer ${TEST_ADMIN_KEY}` },
+    });
     const body = await res.json();
     expect(body.channels.length).toBeGreaterThanOrEqual(1);
   });
@@ -817,7 +826,10 @@ describe('Error handling', () => {
   it('returns 400 for missing channel name', async () => {
     const res = await fetch(`${baseUrl}/api/channels`, {
       method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
+      headers: {
+        'Content-Type': 'application/json',
+        Authorization: `Bearer ${TEST_ADMIN_KEY}`,
+      },
       body: JSON.stringify({}),
     });
     expect(res.status).toBe(400);

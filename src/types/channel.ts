@@ -36,6 +36,7 @@ export const TOOL_PERMISSION_MAP: Record<string, Permission> = {
   list_participants: 'participants',
   whoami: 'participants',
   get_privacy_policy: 'participants',
+  wait_for_messages: 'messaging',
 };
 
 export interface PrivacyPolicy {

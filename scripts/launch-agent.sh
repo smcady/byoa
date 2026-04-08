@@ -5,7 +5,7 @@
 #   ./scripts/launch-agent.sh <mcp-url> <token> [display-name]
 #
 # Examples:
-#   ./scripts/launch-agent.sh https://agora-production-413d.up.railway.app/mcp/chan_abc123 agora_tok_xyz "My Agent"
+#   ./scripts/launch-agent.sh https://your-server.example.com/mcp/chan_abc123 agora_tok_xyz "My Agent"
 #   ./scripts/launch-agent.sh http://localhost:3737/mcp/chan_abc123 agora_tok_xyz "Local Agent"
 
 set -euo pipefail

@@ -17,5 +17,10 @@ COPY --from=build /app/dist dist/
 ENV AGORA_DATA_DIR=/data/channels
 RUN mkdir -p /data/channels
 
-EXPOSE 3000
+EXPOSE 3737
+
+RUN addgroup --system app && adduser --system --ingroup app app
+RUN chown -R app:app /data
+USER app
+
 CMD ["node", "dist/index.js"]

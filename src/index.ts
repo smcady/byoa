@@ -1,6 +1,6 @@
 import { config } from './config.js';
 import { ChannelManager } from './channel/channel-manager.js';
-import { createApp } from './server/http-server.js';
+import { createApp, requireAdminAuth } from './server/http-server.js';
 import { TelegramAdapter } from './adapters/telegram/telegram-adapter.js';
 import type { TelegramBinding } from './adapters/telegram/telegram-adapter.js';
 import { installLogBuffer, getLogLines } from './log-buffer.js';
@@ -44,16 +44,16 @@ const server = app.listen(config.port, config.host, async () => {
   }
 
   // Remote log viewer
-  app.get('/api/logs', (req, res) => {
+  app.get('/api/logs', requireAdminAuth, (req, res) => {
     const filter = req.query.filter as string | undefined;
     res.type('text/plain').send(getLogLines(filter).join('\n'));
   });
 
   // Coordination replay log
-  app.get('/api/channels/:channelId/coordination', (req, res) => {
+  app.get('/api/channels/:channelId/coordination', requireAdminAuth, (req, res) => {
     const limit = parseInt(req.query.limit as string, 10) || 100;
     try {
-      const store = channelManager.getOrLoad(req.params.channelId);
+      const store = channelManager.getOrLoad(req.params.channelId as string);
       res.json(store.getCoordinationLog(limit));
     } catch {
       res.status(404).json({ error: 'Channel not found' });
@@ -61,7 +61,7 @@ const server = app.listen(config.port, config.host, async () => {
   });
 
   // Expose Telegram stats via the diagnostics endpoint
-  app.get('/api/diagnostics/telegram', (_req, res) => {
+  app.get('/api/diagnostics/telegram', requireAdminAuth, (_req, res) => {
     if (!telegramAdapter) {
       res.json({ enabled: false });
       return;
