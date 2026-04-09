@@ -9,22 +9,27 @@ import { loadConfig, saveConfig } from './config.js';
 
 const rawArgs = process.argv.slice(2);
 
-// Extract --server flag before command parsing
+// Extract --server and --admin-key flags before command parsing
 let serverOverride: string | undefined;
+let adminKeyOverride: string | undefined;
 const args: string[] = [];
 for (let i = 0; i < rawArgs.length; i++) {
   if (rawArgs[i] === '--server' && i + 1 < rawArgs.length) {
     serverOverride = rawArgs[i + 1];
-    i++; // skip value
+    i++;
+  } else if (rawArgs[i] === '--admin-key' && i + 1 < rawArgs.length) {
+    adminKeyOverride = rawArgs[i + 1];
+    i++;
   } else {
     args.push(rawArgs[i]);
   }
 }
 
-// Apply server override to config
-if (serverOverride) {
+// Apply overrides to config
+if (serverOverride || adminKeyOverride) {
   const config = loadConfig();
-  config.serverUrl = serverOverride.replace(/\/$/, ''); // strip trailing slash
+  if (serverOverride) config.serverUrl = serverOverride.replace(/\/$/, '');
+  if (adminKeyOverride) config.adminKey = adminKeyOverride;
   saveConfig(config);
 }
 
@@ -112,6 +117,8 @@ Commands:
 Server:
   --server <url>                  Set the Agora server URL (saved for future commands)
                                   Default: http://localhost:3737
+  --admin-key <key>               Set the admin API key (saved for future commands)
+                                  Or set AGORA_ADMIN_KEY env var
 
 Invite options:
   --type <human|agent>            Participant type (default: human)

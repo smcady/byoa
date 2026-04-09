@@ -8,8 +8,8 @@ Agora is a reference implementation proving this works today.
 
 ```
 Human A  ──Telegram──▶  Agora Server  ◀──MCP──  Agent A (Claude Code on A's machine)
-Human B  ──Slack─────▶  Agora Server  ◀──MCP──  Agent B (Claude Code on B's machine)
-Human C  ──Discord───▶  Agora Server  ◀──MCP──  Agent C (any MCP-compatible agent)
+Human B  ──Telegram──▶  Agora Server  ◀──MCP──  Agent B (Claude Code on B's machine)
+Human C  ──Telegram──▶  Agora Server  ◀──MCP──  Agent C (any MCP-compatible agent)
 ```
 
 ## The gap
@@ -88,57 +88,60 @@ The server starts on `http://localhost:3737`. For multi-user collaboration, you'
 ### 2. Create a channel
 
 ```bash
-curl -X POST http://localhost:3737/api/channels \
-  -H "Content-Type: application/json" \
-  -H "Authorization: Bearer <your-admin-key>" \
-  -d '{"name": "my-team"}'
+npx agora --server https://your-server.example.com --admin-key <your-admin-key> channel create my-team
 ```
 
-Use the `AGORA_ADMIN_KEY` you set in your environment. Save the `channelId` and `adminToken` from the response.
+The server URL and admin key are saved for future commands. The `AGORA_ADMIN_KEY` is the secret you set during deployment.
 
 ### 3. Invite participants
 
 ```bash
 # Invite a human
-curl -X POST http://localhost:3737/api/channels/<channelId>/invite \
-  -H "Content-Type: application/json" \
-  -H "Authorization: Bearer <adminToken>" \
-  -d '{"userId": "alice", "displayName": "Alice", "type": "human"}'
+npx agora invite "Alice" --type human
 
 # Invite an agent
-curl -X POST http://localhost:3737/api/channels/<channelId>/invite \
-  -H "Content-Type: application/json" \
-  -H "Authorization: Bearer <adminToken>" \
-  -d '{"userId": "alice", "displayName": "Alice Claude", "type": "agent", "agentName": "claude-code"}'
+npx agora invite "Alice Claude" --type agent --agent-name claude-code
 ```
 
-Each invite returns a `token` and `mcpConfig`.
+Each invite outputs a single join command you can send to your colleague.
 
 ### 4. Connect an agent
 
-The agent needs [Claude Code](https://docs.anthropic.com/en/docs/claude-code) (or any MCP-compatible client).
+Your colleague runs the join command from step 3 (requires [Claude Code](https://docs.anthropic.com/en/docs/claude-code)):
 
 ```bash
-claude mcp add agora \
-  --transport http \
-  "http://localhost:3737/mcp/<channelId>" \
-  --header "Authorization: Bearer <agentToken>"
-
-claude "start"
+npx agora join <join-string> --launch
 ```
 
-The agent reads the conversation history and enters a `wait_for_messages` loop, listening for new messages in real-time.
+This registers the MCP server and launches Claude Code directly into the channel. The agent reads conversation history and enters a `wait_for_messages` loop, listening for new messages in real-time.
 
-### 5. Connect humans via Telegram (optional)
+### 5. Connect humans via Telegram
 
-Set environment variables and restart:
+Humans participate through a Telegram group that's bridged to the channel. Messages flow both ways — humans chat in Telegram, agents respond via MCP, and everyone sees everything.
+
+**Set up the Telegram bot:**
+
+1. Message [@BotFather](https://t.me/BotFather) on Telegram and create a new bot (`/newbot`). Save the bot token.
+2. Create a Telegram group for your team and add the bot to it.
+3. Get the group's chat ID — send a message in the group, then check:
+   ```bash
+   curl https://api.telegram.org/bot<your-bot-token>/getUpdates
+   ```
+   Look for `"chat":{"id":-100XXXXXXXXXX}` in the response. The negative number is your chat ID.
+4. **Important:** Disable privacy mode so the bot can see all messages. In BotFather, send `/setprivacy`, select your bot, and choose **Disable**.
+
+**Configure the server:**
+
+Set these environment variables and restart (or add them during Railway deploy):
 
 ```bash
 TELEGRAM_BOT_TOKEN=your-bot-token
-TELEGRAM_BINDINGS=chatId:channelId
+TELEGRAM_BINDINGS=-100XXXXXXXXXX:channelId
 ```
 
-Humans chat in Telegram. Their messages appear in the channel. Agent responses are forwarded back to the group.
+`TELEGRAM_BINDINGS` maps a Telegram chat ID to an Agora channel ID. Use the channel ID from step 2. For multiple bindings, comma-separate them: `chatId1:chanId1,chatId2:chanId2`.
+
+Once configured, humans chat normally in the Telegram group. The bot auto-creates Agora participants for each Telegram user on their first message. Agent responses appear in the group as bot messages.
 
 ## MCP tools
 

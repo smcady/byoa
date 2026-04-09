@@ -1,5 +1,5 @@
 import { ApiClient } from '../api-client.js';
-import { loadConfig, saveConfig } from '../config.js';
+import { loadConfig, saveConfig, getAdminKey } from '../config.js';
 
 export async function channelCreate(name: string): Promise<void> {
   if (!name) {
@@ -8,9 +8,10 @@ export async function channelCreate(name: string): Promise<void> {
   }
 
   const config = loadConfig();
+  const adminKey = getAdminKey(config);
   const api = new ApiClient(config.serverUrl);
 
-  const result = (await api.post('/api/channels', { name })) as {
+  const result = (await api.post('/api/channels', { name }, adminKey)) as {
     channel: { id: string; name: string };
     adminToken: string;
     mcpEndpoint: string;

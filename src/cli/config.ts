@@ -10,6 +10,7 @@ export interface ChannelCredentials {
 
 export interface AgoraCliConfig {
   serverUrl: string;
+  adminKey: string | null;
   currentChannel: string | null;
   channels: Record<string, ChannelCredentials>;
 }
@@ -19,9 +20,19 @@ const CONFIG_FILE = path.join(CONFIG_DIR, 'config.json');
 
 const DEFAULT_CONFIG: AgoraCliConfig = {
   serverUrl: process.env.AGORA_BASE_URL ?? `http://localhost:${process.env.AGORA_PORT ?? '3737'}`,
+  adminKey: process.env.AGORA_ADMIN_KEY ?? null,
   currentChannel: null,
   channels: {},
 };
+
+export function getAdminKey(config: AgoraCliConfig): string {
+  const key = process.env.AGORA_ADMIN_KEY ?? config.adminKey;
+  if (!key) {
+    console.error('No admin key. Set AGORA_ADMIN_KEY env var or run: agora --admin-key <key> ...');
+    process.exit(1);
+  }
+  return key;
+}
 
 export function loadConfig(): AgoraCliConfig {
   try {

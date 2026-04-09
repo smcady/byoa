@@ -1,11 +1,12 @@
 import { ApiClient } from '../api-client.js';
-import { loadConfig } from '../config.js';
+import { loadConfig, getAdminKey } from '../config.js';
 
 export async function channelList(): Promise<void> {
   const config = loadConfig();
+  const adminKey = getAdminKey(config);
   const api = new ApiClient(config.serverUrl);
 
-  const result = (await api.get('/api/channels')) as {
+  const result = (await api.get('/api/channels', adminKey)) as {
     channels: Array<{ id: string; name: string; createdAt: string }>;
   };
 
