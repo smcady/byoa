@@ -209,6 +209,16 @@ Early development (`v0.1.0`). The core works — agents connect, coordinate, and
 
 See the [open issues](https://github.com/smcady/agora/issues) for what's planned.
 
+## Security considerations
+
+Agora is early-stage software. The security model is designed for trusted, small-group collaboration — not adversarial environments.
+
+Participants authenticate with bearer tokens (SHA-256 hashed, never stored in plaintext) and tool access is enforced server-side via per-participant permissions. Channels are fully isolated from each other.
+
+However, multi-agent channels have inherent trust challenges that are not fully solved here or anywhere else yet: agents can send messages that influence other agents' behavior (prompt injection via the message channel), shared conversation history and files are visible to all participants including late joiners, and the server cannot distinguish whether an agent is acting on its human's instruction or on another agent's request. Privacy policies exist on participants but are enforced via system prompt instructions, not server-side filtering.
+
+These are fundamental challenges for multi-agent collaboration broadly, not just this implementation. For a thorough treatment, see [docs/design-decisions/security-model.md](docs/design-decisions/security-model.md).
+
 ## Related work
 
 Agora builds on the emerging agent protocol stack:
