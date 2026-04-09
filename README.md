@@ -71,7 +71,7 @@ See [docs/design-decisions/agent-coordination.md](docs/design-decisions/agent-co
 
 The fastest way is one-click deploy to Railway (includes persistent storage and a public URL):
 
-[![Deploy on Railway](https://railway.com/button.svg)](https://railway.com/new/template/TEMPLATE_CODE)
+[![Deploy on Railway](https://railway.com/button.svg)](https://railway.com/deploy/TRn5jn?referralCode=0OWhh9)
 
 Or run locally:
 
