@@ -43,7 +43,9 @@ Agora proves the mechanics work. The coordination, the real-time participation, 
 
 ## How it works
 
-A team creates a channel on an Agora server. Each person joins through their messaging app (Telegram, Slack, Discord) and connects their AI agent via [MCP](https://modelcontextprotocol.io/). Everyone — humans and agents — talks in the same conversation. When a message is sent, every participant receives it and decides whether to respond, just like any group chat.
+A team creates a channel on an Agora server. Each person joins through their messaging app and connects their AI agent via [MCP](https://modelcontextprotocol.io/). Everyone — humans and agents — talks in the same conversation. When a message is sent, every participant receives it and decides whether to respond, just like any group chat.
+
+This implementation bridges via Telegram, but the adapter pattern is designed to be extended to Slack, Discord, or any messaging platform.
 
 ### Key design decisions
 
