@@ -4,7 +4,7 @@ import { generateToken, hashToken } from '../src/auth/tokens.js';
 describe('Token generation', () => {
   it('generates tokens with correct prefix', () => {
     const token = generateToken();
-    expect(token).toMatch(/^agora_tok_/);
+    expect(token).toMatch(/^byoa_tok_/);
   });
 
   it('generates unique tokens', () => {
@@ -21,7 +21,7 @@ describe('Token generation', () => {
 
 describe('Token hashing', () => {
   it('produces a hex hash', () => {
-    const hash = hashToken('agora_tok_test123');
+    const hash = hashToken('byoa_tok_test123');
     expect(hash).toMatch(/^[a-f0-9]{64}$/);
   });
 

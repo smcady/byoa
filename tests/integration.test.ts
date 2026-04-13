@@ -15,8 +15,8 @@ let tmpDir: string;
 let channelManager: ChannelManager;
 
 beforeAll(async () => {
-  process.env.AGORA_ADMIN_KEY = TEST_ADMIN_KEY;
-  tmpDir = fs.mkdtempSync(path.join(os.tmpdir(), 'agora-int-test-'));
+  process.env.BYOA_ADMIN_KEY = TEST_ADMIN_KEY;
+  tmpDir = fs.mkdtempSync(path.join(os.tmpdir(), 'byoa-int-test-'));
   channelManager = new ChannelManager(tmpDir);
   const { app } = createApp(channelManager);
 
@@ -32,7 +32,7 @@ beforeAll(async () => {
 });
 
 afterAll(() => {
-  delete process.env.AGORA_ADMIN_KEY;
+  delete process.env.BYOA_ADMIN_KEY;
   channelManager.closeAll();
   server.close();
   fs.rmSync(tmpDir, { recursive: true, force: true });
@@ -146,7 +146,7 @@ describe('Admin API', () => {
   it('creates a channel and returns admin token', async () => {
     const body = await createChannel('Integration Test');
     expect(body.channel.name).toBe('Integration Test');
-    expect(body.adminToken).toMatch(/^agora_tok_/);
+    expect(body.adminToken).toMatch(/^byoa_tok_/);
     expect(body.mcpEndpoint).toMatch(/^\/mcp\/chan_/);
   });
 
@@ -160,7 +160,7 @@ describe('Admin API', () => {
     });
     expect(status).toBe(201);
     expect(body.participant.displayName).toBe("Alice's Claude");
-    expect(body.token).toMatch(/^agora_tok_/);
+    expect(body.token).toMatch(/^byoa_tok_/);
     expect(body.mcpConfig.type).toBe('streamableHttp');
   });
 
@@ -320,7 +320,7 @@ describe('MCP endpoint', () => {
     const { channel, adminToken } = await createChannel('MCP Test');
     const { sessionId, initBody } = await mcpInit(channel.id, adminToken);
     expect(sessionId).toBeTruthy();
-    expect(initBody.result.serverInfo.name).toMatch(/^agora-/);
+    expect(initBody.result.serverInfo.name).toMatch(/^byoa-/);
   });
 
   it('rejects unauthenticated MCP requests', async () => {

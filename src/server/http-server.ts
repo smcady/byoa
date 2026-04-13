@@ -6,14 +6,14 @@ import { SessionManager } from './session-manager.js';
 import { createChannelMcpServer } from './mcp-factory.js';
 import { authenticateRequest } from '../auth/token-auth.js';
 import { generateToken, hashToken } from '../auth/tokens.js';
-import { AgoraError, AuthError, ForbiddenError, NotFoundError, ValidationError } from '../types/errors.js';
+import { ByoaError, AuthError, ForbiddenError, NotFoundError, ValidationError } from '../types/errors.js';
 import { ALL_PERMISSIONS } from '../types/channel.js';
 import type { Participant, Permission, PrivacyPolicy } from '../types/channel.js';
 
 export function requireAdminAuth(req: express.Request, res: express.Response, next: express.NextFunction): void {
-  const adminKey = process.env.AGORA_ADMIN_KEY;
+  const adminKey = process.env.BYOA_ADMIN_KEY;
   if (!adminKey) {
-    res.status(403).json({ error: 'Admin endpoints are disabled. Set AGORA_ADMIN_KEY environment variable to enable.' });
+    res.status(403).json({ error: 'Admin endpoints are disabled. Set BYOA_ADMIN_KEY environment variable to enable.' });
     return;
   }
   const authHeader = req.headers.authorization;
@@ -253,7 +253,7 @@ export function createApp(channelManager: ChannelManager) {
         token,
         mcpConfig: {
           type: 'streamableHttp',
-          url: `${process.env.AGORA_BASE_URL ?? `http://localhost:${process.env.PORT ?? process.env.AGORA_PORT ?? 3737}`}/mcp/${channelId}`,
+          url: `${process.env.BYOA_BASE_URL ?? `http://localhost:${process.env.PORT ?? process.env.BYOA_PORT ?? 3737}`}/mcp/${channelId}`,
           headers: {
             Authorization: `Bearer ${token}`,
           },
@@ -389,7 +389,7 @@ export function createApp(channelManager: ChannelManager) {
 }
 
 function handleError(res: express.Response, err: unknown): void {
-  if (err instanceof AgoraError) {
+  if (err instanceof ByoaError) {
     res.status(err.statusCode).json({ error: err.message, code: err.code });
   } else {
     console.error('Unhandled error:', err);

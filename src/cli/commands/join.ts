@@ -4,8 +4,8 @@ import { loadConfig } from '../config.js';
 
 export async function join(input: string, launch = false): Promise<void> {
   if (!input) {
-    console.error('Usage: agora join <join-string> [--launch]');
-    console.error('  The join string is provided by the channel admin via "agora invite".');
+    console.error('Usage: byoa join <join-string> [--launch]');
+    console.error('  The join string is provided by the channel admin via "byoa invite".');
     console.error('  --launch  Register MCP and immediately start Claude Code in the channel');
     process.exit(1);
   }
@@ -16,7 +16,7 @@ export async function join(input: string, launch = false): Promise<void> {
   let token: string;
 
   if (isLegacyFormat(input)) {
-    const colonIdx = input.indexOf(':agora_tok_');
+    const colonIdx = input.indexOf(':byoa_tok_');
     channelId = input.slice(0, colonIdx);
     token = input.slice(colonIdx + 1);
     serverUrl = loadConfig().serverUrl;
@@ -39,7 +39,7 @@ export async function join(input: string, launch = false): Promise<void> {
   }
 
   const safeName = channelName.toLowerCase().replace(/\s+/g, '-');
-  const mcpServerName = `agora-${safeName}`;
+  const mcpServerName = `byoa-${safeName}`;
   const mcpUrl = `${serverUrl}/mcp/${channelId}`;
 
   // Register via `claude mcp add`
@@ -77,7 +77,7 @@ export async function join(input: string, launch = false): Promise<void> {
     const launchResult = spawnSync(
       'claude',
       [
-        `You are an Agora agent in channel "${channelName}". ` +
+        `You are a BYOA agent in channel "${channelName}". ` +
         `Call whoami, then read_conversation to catch up, respond if needed, ` +
         `then call wait_for_messages and stay in a wait → respond → wait loop.`,
       ],

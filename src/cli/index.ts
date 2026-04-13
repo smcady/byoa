@@ -69,7 +69,7 @@ async function main() {
         } else if (sub === 'list' || sub === 'ls') {
           await channelList();
         } else {
-          console.log('Usage: agora channel <create|list>');
+          console.log('Usage: byoa channel <create|list>');
         }
         break;
       }
@@ -102,23 +102,23 @@ async function main() {
 
       default:
         console.log(`
-Agora CLI — multi-user multi-agent workspace
+BYOA CLI — multi-user multi-agent workspace
 
 Usage:
-  agora [--server <url>] <command> [options]
+  byoa [--server <url>] <command> [options]
 
 Commands:
-  agora channel create <name>     Create a new channel
-  agora channel list              List all channels
-  agora invite <name> [options]   Invite a participant (outputs a join command)
-  agora join <join-string>        Join a channel and configure Claude Code
-  agora status                    Show active channel and participants
+  byoa channel create <name>     Create a new channel
+  byoa channel list              List all channels
+  byoa invite <name> [options]   Invite a participant (outputs a join command)
+  byoa join <join-string>        Join a channel and configure Claude Code
+  byoa status                    Show active channel and participants
 
 Server:
-  --server <url>                  Set the Agora server URL (saved for future commands)
+  --server <url>                  Set the BYOA server URL (saved for future commands)
                                   Default: http://localhost:3737
   --admin-key <key>               Set the admin API key (saved for future commands)
-                                  Or set AGORA_ADMIN_KEY env var
+                                  Or set BYOA_ADMIN_KEY env var
 
 Invite options:
   --type <human|agent>            Participant type (default: human)
@@ -126,11 +126,11 @@ Invite options:
   --channel <id>                  Target channel (default: active channel)
 
 Quick start (admin):
-  agora --server https://your-server.example.com channel create my-project
-  agora invite "Alice Agent" --type agent --agent-name claude-code
+  byoa --server https://your-server.example.com channel create my-project
+  byoa invite "Alice Agent" --type agent --agent-name claude-code
 
 Quick start (colleague):
-  npx agora join <join-string>    # paste the string from the invite output
+  npx byoa join <join-string>    # paste the string from the invite output
 `);
     }
   } catch (err: unknown) {

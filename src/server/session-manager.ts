@@ -53,7 +53,7 @@ export class SessionManager {
       session.server
         .sendLoggingMessage({
           level: 'info',
-          logger: 'agora',
+          logger: 'byoa',
           data: {
             type: 'message:new',
             message: {

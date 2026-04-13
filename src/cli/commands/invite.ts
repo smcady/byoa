@@ -11,7 +11,7 @@ interface InviteOpts {
 
 export async function invite(opts: InviteOpts): Promise<void> {
   if (!opts.displayName) {
-    console.error('Usage: agora invite <display-name> [--type agent] [--agent-name claude-code]');
+    console.error('Usage: byoa invite <display-name> [--type agent] [--agent-name claude-code]');
     process.exit(1);
   }
 
@@ -20,7 +20,7 @@ export async function invite(opts: InviteOpts): Promise<void> {
 
   const channelId = opts.channelId ?? config.currentChannel;
   if (!channelId) {
-    console.error('No active channel. Run: agora channel create <name>');
+    console.error('No active channel. Run: byoa channel create <name>');
     process.exit(1);
   }
 
@@ -58,7 +58,7 @@ export async function invite(opts: InviteOpts): Promise<void> {
   console.log(`Token:   ${result.token}`);
 
   console.log(`\n── Send this to your colleague ──\n`);
-  console.log(`  npx agora join ${joinString} --launch`);
+  console.log(`  npx byoa join ${joinString} --launch`);
   console.log(`\nThat single command registers the MCP server and launches`);
   console.log(`Claude Code directly into the channel conversation.\n`);
 }

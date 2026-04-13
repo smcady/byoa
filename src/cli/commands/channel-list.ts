@@ -11,7 +11,7 @@ export async function channelList(): Promise<void> {
   };
 
   if (result.channels.length === 0) {
-    console.log('No channels. Create one with: agora channel create <name>');
+    console.log('No channels. Create one with: byoa channel create <name>');
     return;
   }
 

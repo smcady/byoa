@@ -9,7 +9,7 @@ let store: ChannelStore;
 let tmpDir: string;
 
 beforeEach(() => {
-  tmpDir = fs.mkdtempSync(path.join(os.tmpdir(), 'agora-test-'));
+  tmpDir = fs.mkdtempSync(path.join(os.tmpdir(), 'byoa-test-'));
   store = new ChannelStore('test-channel', tmpDir);
 });
 
@@ -145,7 +145,7 @@ describe('MemoryStore', () => {
   });
 
   it('lists with prefix filter', () => {
-    store.memory.set('project.name', 'Agora', 'p1');
+    store.memory.set('project.name', 'BYOA', 'p1');
     store.memory.set('project.status', 'active', 'p1');
     store.memory.set('decision.auth', 'bearer tokens', 'p1');
 

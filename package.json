@@ -1,11 +1,11 @@
 {
-  "name": "agora",
+  "name": "byoa",
   "version": "0.1.0",
   "description": "Multi-user, multi-agent collaborative workspace via MCP",
   "type": "module",
   "main": "dist/index.js",
   "bin": {
-    "agora": "./dist/cli/index.js"
+    "byoa": "./dist/cli/index.js"
   },
   "scripts": {
     "start": "node dist/index.js",

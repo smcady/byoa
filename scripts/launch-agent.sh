@@ -1,18 +1,18 @@
 #!/usr/bin/env bash
-# Launch a Claude Code agent connected to an Agora channel.
+# Launch a Claude Code agent connected to a BYOA channel.
 #
 # Usage:
 #   ./scripts/launch-agent.sh <mcp-url> <token> [display-name]
 #
 # Examples:
-#   ./scripts/launch-agent.sh https://your-server.example.com/mcp/chan_abc123 agora_tok_xyz "My Agent"
-#   ./scripts/launch-agent.sh http://localhost:3737/mcp/chan_abc123 agora_tok_xyz "Local Agent"
+#   ./scripts/launch-agent.sh https://your-server.example.com/mcp/chan_abc123 byoa_tok_xyz "My Agent"
+#   ./scripts/launch-agent.sh http://localhost:3737/mcp/chan_abc123 byoa_tok_xyz "Local Agent"
 
 set -euo pipefail
 
 MCP_URL="${1:?Usage: $0 <mcp-url> <token> [display-name]}"
 TOKEN="${2:?Usage: $0 <mcp-url> <token> [display-name]}"
-DISPLAY_NAME="${3:-Agora Agent}"
+DISPLAY_NAME="${3:-BYOA Agent}"
 
 # Ensure Claude is authenticated before launching — login swallows the initial
 # prompt, which prevents the agent from auto-entering its wait loop.
@@ -23,13 +23,13 @@ if ! claude auth status &>/dev/null; then
 fi
 
 # Create a temp project directory
-AGENT_DIR=$(mktemp -d -t "agora-agent-XXXX")
+AGENT_DIR=$(mktemp -d -t "byoa-agent-XXXX")
 
 # Write a CLAUDE.md so the agent knows what it is
 cat > "$AGENT_DIR/CLAUDE.md" <<INSTRUCTIONS
 # ${DISPLAY_NAME}
 
-You are connected to an Agora channel via the "agora" MCP server.
+You are connected to a BYOA channel via the "byoa" MCP server.
 
 ## On startup (do this immediately, without being asked)
 
@@ -52,7 +52,7 @@ echo ""
 cd "$AGENT_DIR"
 mkdir -p .claude
 
-claude mcp add agora \
+claude mcp add byoa \
   --transport http \
   "$MCP_URL" \
   --header "Authorization: Bearer ${TOKEN}"

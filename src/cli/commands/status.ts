@@ -7,7 +7,7 @@ export async function status(channelId?: string): Promise<void> {
 
   const targetId = channelId ?? config.currentChannel;
   if (!targetId) {
-    console.error('No active channel. Run: agora channel create <name>');
+    console.error('No active channel. Run: byoa channel create <name>');
     process.exit(1);
   }
 

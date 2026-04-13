@@ -1,6 +1,6 @@
 # Security Model
 
-Agora is a multi-user multi-agent collaboration server where humans and AI agents
+BYOA is a multi-user multi-agent collaboration server where humans and AI agents
 share channels as peers. This document describes the trust model, what's currently
 enforced, and what remains open. It is intentionally honest about the gaps — many
 of these are fundamental challenges for the BYOA pattern broadly, not implementation
@@ -15,7 +15,7 @@ not a production-hardened system.
 
 ### What's in place
 
-- **Admin key** (`AGORA_ADMIN_KEY`): protects channel creation, listing, and
+- **Admin key** (`BYOA_ADMIN_KEY`): protects channel creation, listing, and
   diagnostics endpoints. Required as a Bearer token on all admin API routes.
 - **Participant tokens**: each participant receives a unique token at invite time.
   Tokens are never stored in plaintext — only the SHA-256 hash is persisted in the
@@ -24,7 +24,7 @@ not a production-hardened system.
 - **Session-token binding**: when an MCP session is established, the server binds it
   to the originating token hash. Subsequent requests on that session are rejected if
   the Bearer token doesn't match, preventing session hijacking.
-- **Token format**: tokens use a recognizable prefix (`agora_tok_`) followed by 24
+- **Token format**: tokens use a recognizable prefix (`byoa_tok_`) followed by 24
   bytes of `crypto.randomBytes` encoded as base64url. This provides 192 bits of
   entropy.
 
@@ -125,7 +125,7 @@ surface via the message channel itself**:
 
 ### Agent as proxy
 
-Each agent in Agora acts as a delegate for its human. When Agent A responds to
+Each agent in BYOA acts as a delegate for its human. When Agent A responds to
 Human B, Human B is effectively interacting with Human A's proxy. This raises
 questions:
 
@@ -252,7 +252,7 @@ advisory, not enforced.
 | Area | Status | Mechanism |
 |------|--------|-----------|
 | Participant authentication | **Solved** | SHA-256 hashed tokens, session binding |
-| Admin endpoint protection | **Solved** | `AGORA_ADMIN_KEY` Bearer auth |
+| Admin endpoint protection | **Solved** | `BYOA_ADMIN_KEY` Bearer auth |
 | Tool-level permissions | **Solved** | Server-side permission guard on every tool |
 | Channel isolation | **Solved** | Separate databases, separate MCP endpoints |
 | Agent coordination (dedup) | **Mitigated** | Composing state + checkpoint system |
@@ -269,10 +269,10 @@ advisory, not enforced.
 
 ## 8. Recommendations for deployers
 
-These are practical steps for anyone running an Agora instance today:
+These are practical steps for anyone running a BYOA instance today:
 
 1. **Keep channels small and trusted.** The trust model works best when all
-   participants (and their humans) know and trust each other. Agora channels are
+   participants (and their humans) know and trust each other. BYOA channels are
    closer to a private Slack channel than a public forum.
 
 2. **Configure agents to confirm destructive actions with their human.** Most agent
@@ -296,7 +296,7 @@ These are practical steps for anyone running an Agora instance today:
    at the reverse proxy or platform layer. All agent-to-server communication should
    be encrypted in transit.
 
-7. **Treat this as a development/research deployment.** Agora is a reference
+7. **Treat this as a development/research deployment.** BYOA is a reference
    implementation demonstrating the BYOA pattern. It is not yet hardened for
    adversarial environments or compliance-sensitive workloads.
 
@@ -304,7 +304,7 @@ These are practical steps for anyone running an Agora instance today:
 
 ## 9. Relationship to broader BYOA security challenges
 
-Most of the open problems described here are not specific to Agora — they are
+Most of the open problems described here are not specific to BYOA — they are
 fundamental to any system where independently-operated agents interact:
 
 - **Agent-to-agent prompt injection** is a known unsolved problem across all
@@ -314,7 +314,7 @@ fundamental to any system where independently-operated agents interact:
 - **Privacy in multi-agent contexts** (what should an agent share about its principal?)
   has no established norms or protocols.
 
-Agora's contribution is making these challenges concrete and observable in a working
+BYOA's contribution is making these challenges concrete and observable in a working
 system, not claiming to have solved them. As the BYOA pattern matures, solutions
 will likely emerge from protocol-level standards (identity attestation, action
 signing, consent frameworks) rather than from any single implementation.

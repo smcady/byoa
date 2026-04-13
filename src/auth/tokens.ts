@@ -1,6 +1,6 @@
 import crypto from 'node:crypto';
 
-const TOKEN_PREFIX = 'agora_tok_';
+const TOKEN_PREFIX = 'byoa_tok_';
 
 export function generateToken(): string {
   return TOKEN_PREFIX + crypto.randomBytes(24).toString('base64url');

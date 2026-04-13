@@ -42,7 +42,7 @@ function buildInstructions(store: ChannelStore, participant: Participant): strin
     }
   }
 
-  return `You are ${participant.displayName} (${participant.type}), connected to Agora channel "${store.channelId}".
+  return `You are ${participant.displayName} (${participant.type}), connected to BYOA channel "${store.channelId}".
 ${permissionNote}${privacySection}
 
 ## Participants in this channel
@@ -137,7 +137,7 @@ export function createChannelMcpServer(
 ): McpServer {
   const server = new McpServer(
     {
-      name: `agora-${store.channelId}`,
+      name: `byoa-${store.channelId}`,
       version: '0.1.0',
     },
     {

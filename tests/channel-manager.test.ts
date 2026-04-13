@@ -8,7 +8,7 @@ let manager: ChannelManager;
 let tmpDir: string;
 
 beforeEach(() => {
-  tmpDir = fs.mkdtempSync(path.join(os.tmpdir(), 'agora-mgr-test-'));
+  tmpDir = fs.mkdtempSync(path.join(os.tmpdir(), 'byoa-mgr-test-'));
   manager = new ChannelManager(tmpDir);
 });
 

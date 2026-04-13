@@ -37,7 +37,7 @@ export function decodeJoinString(blob: string): {
   if (!parsed.c.startsWith('chan_')) {
     throw new Error('Malformed join string — invalid channel ID.');
   }
-  if (!parsed.t.startsWith('agora_tok_')) {
+  if (!parsed.t.startsWith('byoa_tok_')) {
     throw new Error('Malformed join string — invalid token.');
   }
 
@@ -48,5 +48,5 @@ export function decodeJoinString(blob: string): {
  * Detect whether a string is the legacy format (channelId:token) or a base64 join string.
  */
 export function isLegacyFormat(input: string): boolean {
-  return input.includes(':agora_tok_');
+  return input.includes(':byoa_tok_');
 }

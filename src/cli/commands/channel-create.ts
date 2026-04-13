@@ -3,7 +3,7 @@ import { loadConfig, saveConfig, getAdminKey } from '../config.js';
 
 export async function channelCreate(name: string): Promise<void> {
   if (!name) {
-    console.error('Usage: agora channel create <name>');
+    console.error('Usage: byoa channel create <name>');
     process.exit(1);
   }
 
@@ -31,5 +31,5 @@ export async function channelCreate(name: string): Promise<void> {
   console.log(`  Endpoint: ${config.serverUrl}${result.mcpEndpoint}`);
   console.log(`\nAdmin token saved. This is now your active channel.`);
   console.log(`\nNext: invite participants with:`);
-  console.log(`  agora invite "Alice" --type agent --agent-name claude-code`);
+  console.log(`  byoa invite "Alice" --type agent --agent-name claude-code`);
 }

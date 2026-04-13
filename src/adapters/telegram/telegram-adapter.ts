@@ -8,7 +8,7 @@ import { hashToken } from '../../auth/tokens.js';
 export interface TelegramBinding {
   /** Telegram chat ID (group or supergroup) */
   chatId: number;
-  /** Agora channel ID */
+  /** BYOA channel ID */
   channelId: string;
 }
 
@@ -22,9 +22,9 @@ export class TelegramAdapter implements PlatformAdapter {
   private bot: Bot;
   private bindings: Map<number, { channelId: string; store: ChannelStore }>;
   private reverseBindings: Map<string, number>;
-  /** Track participant IDs: chatId:telegramUserId -> agoraParticipantId */
+  /** Track participant IDs: chatId:telegramUserId -> byoaParticipantId */
   private telegramParticipants = new Map<string, string>();
-  /** Set of Agora participant IDs that originated from Telegram — for echo suppression */
+  /** Set of BYOA participant IDs that originated from Telegram — for echo suppression */
   private telegramParticipantIds = new Set<string>();
   private eventCleanups: Array<() => void> = [];
 
@@ -55,7 +55,7 @@ export class TelegramAdapter implements PlatformAdapter {
       }
     }
 
-    // Telegram → Agora: forward incoming messages to channel
+    // Telegram → BYOA: forward incoming messages to channel
     this.bot.on('message:text', async (ctx) => {
       const chatId = ctx.chat.id;
       const binding = this.bindings.get(chatId);
@@ -82,7 +82,7 @@ export class TelegramAdapter implements PlatformAdapter {
       }
     });
 
-    // Agora → Telegram: forward channel messages to Telegram
+    // BYOA → Telegram: forward channel messages to Telegram
     for (const [chatId, { channelId, store }] of this.bindings) {
       const handler = (message: Message) => {
         // Don't echo back messages that originated from Telegram

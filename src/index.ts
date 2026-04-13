@@ -13,7 +13,7 @@ const { app, sessionManager } = createApp(channelManager);
 let telegramAdapter: TelegramAdapter | undefined;
 
 const server = app.listen(config.port, config.host, async () => {
-  console.log(`Agora server running on http://${config.host}:${config.port}`);
+  console.log(`BYOA server running on http://${config.host}:${config.port}`);
   console.log(`Data directory: ${config.dataDir}`);
 
   // Start Telegram adapter if configured

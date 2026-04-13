@@ -14,7 +14,7 @@ COPY package.json package-lock.json ./
 RUN npm ci --omit=dev
 COPY --from=build /app/dist dist/
 
-ENV AGORA_DATA_DIR=/data/channels
+ENV BYOA_DATA_DIR=/data/channels
 RUN mkdir -p /data/channels
 
 EXPOSE 3737
