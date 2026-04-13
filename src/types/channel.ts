@@ -11,9 +11,21 @@ export type Permission =
   | 'files_write'
   | 'memory_read'
   | 'memory_write'
-  | 'participants';
+  | 'participants'
+  | 'manage';
 
 export const ALL_PERMISSIONS: Permission[] = [
+  'messaging',
+  'files_read',
+  'files_write',
+  'memory_read',
+  'memory_write',
+  'participants',
+  'manage',
+];
+
+/** Default permissions for new participants (excludes manage) */
+export const DEFAULT_PERMISSIONS: Permission[] = [
   'messaging',
   'files_read',
   'files_write',

@@ -6,9 +6,9 @@ import { SessionManager } from './session-manager.js';
 import { createChannelMcpServer } from './mcp-factory.js';
 import { authenticateRequest } from '../auth/token-auth.js';
 import { generateToken, hashToken } from '../auth/tokens.js';
-import { AgoraError, AuthError, NotFoundError, ValidationError } from '../types/errors.js';
+import { AgoraError, AuthError, ForbiddenError, NotFoundError, ValidationError } from '../types/errors.js';
 import { ALL_PERMISSIONS } from '../types/channel.js';
-import type { Permission, PrivacyPolicy } from '../types/channel.js';
+import type { Participant, Permission, PrivacyPolicy } from '../types/channel.js';
 
 export function requireAdminAuth(req: express.Request, res: express.Response, next: express.NextFunction): void {
   const adminKey = process.env.AGORA_ADMIN_KEY;
@@ -40,6 +40,12 @@ export function createApp(channelManager: ChannelManager) {
       sessionManager.broadcastMessage(channelId, message, message.participantId);
     });
     wiredChannels.add(channelId);
+  }
+
+  function requireManagePermission(participant: Participant): void {
+    if (!participant.permissions.includes('manage')) {
+      throw new ForbiddenError('This action requires the "manage" permission');
+    }
   }
 
   // ─── MCP endpoint ──────────────────────────────────────────────
@@ -161,11 +167,12 @@ export function createApp(channelManager: ChannelManager) {
       const adminToken = generateToken();
       const { channel, store } = channelManager.create(name, 'admin');
 
-      // Create admin participant
+      // Create admin participant with manage permission
       store.participants.add({
         userId: 'admin',
         displayName: 'Admin',
         type: 'human',
+        permissions: ALL_PERMISSIONS,
         tokenHash: hashToken(adminToken),
       });
 
@@ -213,8 +220,9 @@ export function createApp(channelManager: ChannelManager) {
         validatedPermissions = permissions;
       }
 
-      // Auth: only existing participants can invite
-      authenticateRequest(channelManager, channelId, req.headers.authorization);
+      // Auth: only participants with manage permission can invite
+      const caller = authenticateRequest(channelManager, channelId, req.headers.authorization);
+      requireManagePermission(caller);
 
       // Validate privacy policy if provided
       if (privacyPolicy && typeof privacyPolicy !== 'object') {
@@ -292,7 +300,8 @@ export function createApp(channelManager: ChannelManager) {
         }
       }
 
-      authenticateRequest(channelManager, channelId, req.headers.authorization);
+      const caller = authenticateRequest(channelManager, channelId, req.headers.authorization);
+      requireManagePermission(caller);
       const store = channelManager.getOrLoad(channelId);
       const updated = store.participants.updatePermissions(participantId, permissions);
       if (!updated) throw new NotFoundError(`Participant: ${participantId}`);
@@ -318,7 +327,8 @@ export function createApp(channelManager: ChannelManager) {
         throw new ValidationError('privacyPolicy must be an object or null');
       }
 
-      authenticateRequest(channelManager, channelId, req.headers.authorization);
+      const caller = authenticateRequest(channelManager, channelId, req.headers.authorization);
+      requireManagePermission(caller);
       const store = channelManager.getOrLoad(channelId);
       const updated = store.participants.updatePrivacyPolicy(
         participantId,
@@ -341,7 +351,8 @@ export function createApp(channelManager: ChannelManager) {
   app.delete('/api/channels/:channelId/participants/:participantId', (req, res) => {
     try {
       const { channelId, participantId } = req.params;
-      authenticateRequest(channelManager, channelId, req.headers.authorization);
+      const caller = authenticateRequest(channelManager, channelId, req.headers.authorization);
+      requireManagePermission(caller);
       const store = channelManager.getOrLoad(channelId);
       const removed = store.participants.remove(participantId);
       if (!removed) throw new NotFoundError(`Participant: ${participantId}`);

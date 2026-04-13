@@ -1,7 +1,7 @@
 import type Database from 'better-sqlite3';
 import { nanoid } from 'nanoid';
 import type { Participant, Permission, PrivacyPolicy } from '../types/channel.js';
-import { ALL_PERMISSIONS } from '../types/channel.js';
+import { DEFAULT_PERMISSIONS } from '../types/channel.js';
 
 export class ParticipantStore {
   constructor(
@@ -19,7 +19,7 @@ export class ParticipantStore {
     tokenHash: string;
   }): Participant {
     const now = new Date().toISOString();
-    const permissions = opts.permissions ?? ALL_PERMISSIONS;
+    const permissions = opts.permissions ?? DEFAULT_PERMISSIONS;
     const participant: Participant = {
       id: nanoid(),
       channelId: this.channelId,
@@ -107,7 +107,7 @@ export class ParticipantStore {
       displayName: r.display_name,
       type: r.type as 'human' | 'agent',
       agentName: r.agent_name ?? undefined,
-      permissions: r.permissions ? JSON.parse(r.permissions) : ALL_PERMISSIONS,
+      permissions: r.permissions ? JSON.parse(r.permissions) : DEFAULT_PERMISSIONS,
       privacyPolicy: r.privacy_policy ? JSON.parse(r.privacy_policy) : undefined,
       tokenHash: r.token_hash,
       joinedAt: r.joined_at,

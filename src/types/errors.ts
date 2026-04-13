@@ -23,6 +23,13 @@ export class NotFoundError extends AgoraError {
   }
 }
 
+export class ForbiddenError extends AgoraError {
+  constructor(message: string = 'Forbidden') {
+    super(message, 'FORBIDDEN', 403);
+    this.name = 'ForbiddenError';
+  }
+}
+
 export class ValidationError extends AgoraError {
   constructor(message: string) {
     super(message, 'VALIDATION_ERROR', 400);
