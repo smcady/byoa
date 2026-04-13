@@ -38,7 +38,9 @@ export class FileStore {
 
   private resolve(filePath: string): string {
     const resolved = path.resolve(this.filesDir, filePath);
-    if (!resolved.startsWith(this.filesDir)) {
+    // Ensure resolved path is exactly filesDir or inside it (trailing sep prevents
+    // /data/chan_abc matching /data/chan_abcdef)
+    if (resolved !== this.filesDir && !resolved.startsWith(this.filesDir + path.sep)) {
       throw new ValidationError('Path traversal not allowed');
     }
     return resolved;
