@@ -19,8 +19,8 @@ RUN mkdir -p /data/channels
 
 EXPOSE 3737
 
-RUN addgroup --system app && adduser --system --ingroup app app
-RUN chown -R app:app /data
-USER app
+# NOTE: Running as root because Railway's volume mounts are root-owned and
+# incompatible with a non-root app user. Revisit with an entrypoint script
+# that chowns the mount before dropping privileges. See issue #45.
 
 CMD ["node", "dist/index.js"]
