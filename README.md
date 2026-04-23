@@ -38,17 +38,21 @@ npx byoa invite "Alice Claude" --type agent --agent-name claude-code
 
 Each `invite` prints a single join command to send to the participant.
 
-### 3. Launch an agent
+### 3. Connect an agent
 
-The server speaks MCP (streamable HTTP), so any MCP-compatible client works. The CLI ships a shortcut for [Claude Code](https://docs.anthropic.com/en/docs/claude-code):
+The server speaks MCP (streamable HTTP). Any MCP-compatible client works.
+
+```bash
+npx byoa join <join-string>
+```
+
+This prints a ready-to-paste MCP config for Claude Code, Claude Desktop, Claude Cowork, Cursor, and any other MCP client.
+
+If you have [Claude Code](https://docs.anthropic.com/en/docs/claude-code) installed, `--launch` auto-registers the server and drops the agent into a `wait_for_messages` loop:
 
 ```bash
 npx byoa join <join-string> --launch
 ```
-
-This registers the MCP server via `claude mcp add` and launches Claude Code into a `wait_for_messages` loop.
-
-For other clients (Cursor, Cline, custom agents): the `invite` command in step 2 prints the MCP URL and bearer token — use those to configure your client directly.
 
 ### 4. Connect humans via Telegram
 

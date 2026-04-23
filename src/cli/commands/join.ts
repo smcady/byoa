@@ -6,7 +6,7 @@ export async function join(input: string, launch = false): Promise<void> {
   if (!input) {
     console.error('Usage: byoa join <join-string> [--launch]');
     console.error('  The join string is provided by the channel admin via "byoa invite".');
-    console.error('  --launch  Register MCP and immediately start Claude Code in the channel');
+    console.error('  --launch  Auto-register with Claude Code and launch it into the channel');
     process.exit(1);
   }
 
@@ -42,10 +42,64 @@ export async function join(input: string, launch = false): Promise<void> {
   const mcpServerName = `byoa-${safeName}`;
   const mcpUrl = `${serverUrl}/mcp/${channelId}`;
 
-  // Register via `claude mcp add`
+  if (launch) {
+    await launchWithClaudeCode(channelName, mcpServerName, mcpUrl, token);
+    return;
+  }
+
+  // Default: print config for all common MCP clients
+  printJoinInfo(channelName, channelId, serverUrl, mcpServerName, mcpUrl, token);
+}
+
+function printJoinInfo(
+  channelName: string,
+  channelId: string,
+  serverUrl: string,
+  mcpServerName: string,
+  mcpUrl: string,
+  token: string
+): void {
   console.log(`\nJoining channel: ${channelName} (${channelId})`);
-  console.log(`Server: ${serverUrl}`);
-  console.log(`Registering MCP server "${mcpServerName}"...\n`);
+  console.log(`Server: ${serverUrl}\n`);
+
+  console.log('── MCP connection info ──\n');
+  console.log(`  URL:    ${mcpUrl}`);
+  console.log(`  Token:  ${token}\n`);
+
+  console.log('── Claude Code (CLI) ──\n');
+  console.log(`  claude mcp add ${mcpServerName} --transport http \\`);
+  console.log(`    ${mcpUrl} \\`);
+  console.log(`    --header "Authorization: Bearer ${token}"\n`);
+  console.log(`  Or use:  npx byoa join <join-string> --launch\n`);
+
+  console.log('── Claude Desktop / Cursor / Claude Cowork / custom MCP clients ──\n');
+  const config = {
+    [mcpServerName]: {
+      type: 'http',
+      url: mcpUrl,
+      headers: {
+        Authorization: `Bearer ${token}`,
+      },
+    },
+  };
+  console.log(`  Add to your client's MCP config:\n`);
+  console.log(
+    JSON.stringify(config, null, 2)
+      .split('\n')
+      .map((line) => '  ' + line)
+      .join('\n')
+  );
+  console.log();
+}
+
+async function launchWithClaudeCode(
+  channelName: string,
+  mcpServerName: string,
+  mcpUrl: string,
+  token: string
+): Promise<void> {
+  console.log(`\nJoining channel: ${channelName}`);
+  console.log(`Registering MCP server "${mcpServerName}" with Claude Code...\n`);
 
   const result = spawnSync(
     'claude',
@@ -58,48 +112,24 @@ export async function join(input: string, launch = false): Promise<void> {
     { stdio: 'inherit' }
   );
 
-  if (result.error) {
-    console.error(`Could not run "claude mcp add" (${result.error.message}).`);
-    console.log(`\nManual setup — add this to your Claude Code MCP settings:\n`);
-    printManualConfig(mcpServerName, mcpUrl, token);
+  if (result.error || result.status !== 0) {
+    const reason = result.error
+      ? result.error.message
+      : `"claude mcp add" exited with code ${result.status}`;
+    console.error(`\nCould not auto-register with Claude Code (${reason}).`);
+    console.error(`\nRun "npx byoa join <join-string>" (without --launch) to see manual setup instructions.\n`);
     process.exit(1);
   }
 
-  if (result.status !== 0) {
-    console.error(`\n"claude mcp add" exited with code ${result.status}.`);
-    console.log(`\nManual setup — add this to your Claude Code MCP settings:\n`);
-    printManualConfig(mcpServerName, mcpUrl, token);
-    process.exit(1);
-  }
-
-  if (launch) {
-    console.log(`\nLaunching Claude Code into the channel...\n`);
-    const launchResult = spawnSync(
-      'claude',
-      [
-        `You are a BYOA agent in channel "${channelName}". ` +
-        `Call whoami, then read_conversation to catch up, respond if needed, ` +
-        `then call wait_for_messages and stay in a wait → respond → wait loop.`,
-      ],
-      { stdio: 'inherit' }
-    );
-    process.exit(launchResult.status ?? 0);
-  }
-
-  console.log(`\nDone! MCP server registered.`);
-  console.log(`Start Claude Code and it will auto-connect to the channel.\n`);
-}
-
-function printManualConfig(name: string, url: string, token: string): void {
-  const config = {
-    [name]: {
-      type: 'http',
-      url,
-      headers: {
-        Authorization: `Bearer ${token}`,
-      },
-    },
-  };
-  console.log(JSON.stringify(config, null, 2));
-  console.log();
+  console.log(`\nLaunching Claude Code into the channel...\n`);
+  const launchResult = spawnSync(
+    'claude',
+    [
+      `You are a BYOA agent in channel "${channelName}". ` +
+      `Call whoami, then read_conversation to catch up, respond if needed, ` +
+      `then call wait_for_messages and stay in a wait → respond → wait loop.`,
+    ],
+    { stdio: 'inherit' }
+  );
+  process.exit(launchResult.status ?? 0);
 }
